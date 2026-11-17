@@ -8,8 +8,20 @@ lisibilité).
 - Node.js 22.20, sous Windows 11.
 - Les durées sont les `duration_ms` affichées par `node --test`. Chaque fichier a été lancé 3 fois
   et les tableaux donnent la fourchette des trois mesures.
-- Les fichiers modifiés viennent de `git diff --stat 90a2a35 ce7483b`, entre le premier commit et le
-  commit du TP.
+- Les fichiers modifiés viennent de `git diff --stat`. Pour une expérience, on compare son commit
+  au commit d'avant (`git diff --stat HEAD~1`) ; pour l'ensemble du TP, on compare le premier commit
+  (`90a2a35`) au commit de la dernière expérience (`a80b807`).
+
+**Les commits, un par étape :**
+
+| Empreinte | Commit |
+|---|---|
+| `90a2a35` | first commit : le code du cours |
+| `36fbb2a` | TP1 étape 2 : trois avantages et leurs preuves |
+| `a3680f4` | TP1 expérience 1 : test sans base |
+| `5f1822b` | TP1 expérience 2 : adaptateur remplacé |
+| `a80b807` | TP1 expérience 3 : entrée de plus |
+| `5248c6c` | TP1 étape 3 : résultats des expériences (ce fichier) |
 
 **Suite complète :**
 
@@ -21,7 +33,7 @@ lisibilité).
 **Le centre n'a pas bougé.** La commande suivante n'affiche aucune différence :
 
 ```bash
-git diff --stat 90a2a35 ce7483b -- urbanhub-air/src/domaine.ts urbanhub-air/src/ports.ts \
+git diff --stat 90a2a35 a80b807 -- urbanhub-air/src/domaine.ts urbanhub-air/src/ports.ts \
   urbanhub-air/src/regles.ts urbanhub-air/src/service.ts urbanhub-air/src/principal.ts
 ```
 
