@@ -182,16 +182,22 @@ Un commit par étape :
 
 ### TP 3 : monolithe ou microservices, pour UrbanHub
 
-Le TP 3 se rend dans un **dépôt du groupe**, créé pour ce TP. Ses documents ont été écrits ici,
-dans [`docs/tp3/`](docs/tp3/), un commit par étape, puis copiés dans le dépôt du groupe.
+Comme les TP 1 et 2, le TP 3 est rendu dans **ce dépôt** : un seul dépôt pour tout le module,
+comme l'a demandé l'enseignant.
 
 | | |
 |---|---|
-| **Lien du dépôt** | https://github.com/Ibrxhxm-Bxddxne/urbanhub-tp3 |
-| **Empreinte du commit** | `7bf1980` (dans le dépôt du groupe : TP3, livrables) |
-| **Chemin du livrable** | le README du dépôt du groupe ; ici, [`docs/tp3/`](docs/tp3/), [`k8s/trafic.yaml`](k8s/trafic.yaml) et [`Dockerfile.trafic`](Dockerfile.trafic) |
+| **Lien du dépôt** | https://github.com/Ibrxhxm-Bxddxne/cours-hexagonale |
+| **Empreinte du commit** | `079855e` (TP3 étape 6 : conclusion ; ce commit contient tous les livrables) |
+| **Chemin du livrable** | [`docs/tp3/README.md`](docs/tp3/README.md) (le sommaire), avec [`k8s/trafic.yaml`](k8s/trafic.yaml) et [`Dockerfile.trafic`](Dockerfile.trafic) |
 
-| Étape | Commit (ici) |
+| Livrable demandé | Où le trouver |
+|---|---|
+| Les deux schémas et la vue d'ensemble | [`docs/tp3/etape2-deux-dessins.md`](docs/tp3/etape2-deux-dessins.md), [`docs/tp3/etape4-vue-ensemble.md`](docs/tp3/etape4-vue-ensemble.md) |
+| La gestion de chaque service ; le comparatif | [`docs/tp3/etape4-vue-ensemble.md`](docs/tp3/etape4-vue-ensemble.md) (§ 3), [`docs/tp3/etape3-tableau-comparatif.md`](docs/tp3/etape3-tableau-comparatif.md) |
+| Le manifeste Kubernetes | [`k8s/trafic.yaml`](k8s/trafic.yaml) |
+
+| Étape | Commit |
 |---|---|
 | 1. Les contextes délimités et leurs données | `35413cd` |
 | 2. Le monolithe hexagonal et les microservices, dessinés | `21671d5` |
