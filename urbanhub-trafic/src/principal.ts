@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { DepotRelevesSqlite } from "./adaptateurs/depotSqlite.ts";
 import { gestionnaire } from "./adaptateurs/entreeHttp.ts";
-import { EtatsTronconsEnMemoire } from "./adaptateurs/etatsMemoire.ts";
+import { EtatsTronconsSqlite } from "./adaptateurs/etatsSqlite.ts";
 import { PublicateurSignalementsHttp } from "./adaptateurs/publicationHttp.ts";
 import { ReferentielTronconsEnMemoire } from "./adaptateurs/referentielMemoire.ts";
 import { PublicateurAvecReessai } from "./adaptateurs/reessai.ts";
@@ -16,9 +16,10 @@ const env = process.env;
 const troncons = JSON.parse(readFileSync(
   env.TRONCONS ?? new URL("../troncons.json", import.meta.url), "utf8"));
 
-const depot = new DepotRelevesSqlite(env.BASE_RELEVES ?? "releves.db");
+const base = env.BASE_RELEVES ?? "releves.db";
+const depot = new DepotRelevesSqlite(base);
 const referentiel = new ReferentielTronconsEnMemoire(troncons);
-const etats = new EtatsTronconsEnMemoire();
+const etats = new EtatsTronconsSqlite(base);          // etape 6 : remplace EtatsTronconsEnMemoire
 const publicateur = new PublicateurAvecReessai(                       // Decorateur
   new PublicateurSignalementsHttp(env.URL_SIGNALEMENTS ?? "http://localhost:8004/signalements"));
 const regle = env.REGLE === "avec-minimum"                            // Strategie
