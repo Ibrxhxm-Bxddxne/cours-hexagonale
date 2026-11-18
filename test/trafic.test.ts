@@ -7,6 +7,7 @@ import { EtatsTronconsEnMemoire } from "../urbanhub-trafic/src/adaptateurs/etats
 import { ReferentielTronconsEnMemoire } from "../urbanhub-trafic/src/adaptateurs/referentielMemoire.ts";
 import { TronconInconnu, releve } from "../urbanhub-trafic/src/domaine.ts";
 import type { PublicateurSignalements, Signalement } from "../urbanhub-trafic/src/ports.ts";
+import { SeuilRelatif } from "../urbanhub-trafic/src/regles.ts";
 import { SurveillanceTrafic } from "../urbanhub-trafic/src/service.ts";
 
 const VOLTAIRE = "boulevard-voltaire-3";   // limite 50 km/h : seuil a 20 km/h
@@ -19,7 +20,8 @@ function assembler(publicateur?: PublicateurSignalements) {
     new ReferentielTronconsEnMemoire([{ identifiant: VOLTAIRE, vitesseLimite: 50 },
       { identifiant: RIVOLI, vitesseLimite: 30 }]),
     new EtatsTronconsEnMemoire(),
-    publicateur ?? { publier: async (s) => { publies.push(s); } });
+    publicateur ?? { publier: async (s) => { publies.push(s); } },
+    new SeuilRelatif(0.4));                  // la regle du README (Strategie, etape 5)
   return { service, publies, depot };
 }
 const r = (troncon: string, vitesse: number, heure: string) =>

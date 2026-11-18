@@ -1,0 +1,5 @@
+[
+  { "identifiant": "boulevard-voltaire-3", "vitesseLimite": 50 },
+  { "identifiant": "rue-de-rivoli-1", "vitesseLimite": 30 },
+  { "identifiant": "peripherique-porte-maillot", "vitesseLimite": 70 }
+]

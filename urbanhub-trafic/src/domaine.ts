@@ -5,7 +5,7 @@
 /** Horodatage local du capteur, a la seconde, sans fuseau : "2026-11-18T08:10:00". */
 const HORODATAGE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 export const FENETRE_MINUTES = 15;
-export const PART_DE_LA_LIMITE = 0.4;
+// Le seuil (40 % de la limite) est dans regles.ts : c'est une Strategie (etape 5).
 
 export class ReleveInvalide extends Error {}
 export class TronconInconnu extends Error {}
@@ -54,9 +54,4 @@ export function debutFenetre(horodatage: string): string {
 
 export function vitesseMoyenne(releves: Releve[]): number {
   return releves.reduce((somme, r) => somme + r.vitesse, 0) / releves.length;
-}
-
-/** La regle : sous 40 % de la limite, le troncon est congestionne. */
-export function etatSelon(moyenne: number, t: Troncon): EtatTroncon {
-  return moyenne < PART_DE_LA_LIMITE * t.vitesseLimite ? "congestionne" : "fluide";
 }

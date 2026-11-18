@@ -10,7 +10,8 @@
     "test": "node --test \"test/**/*.test.ts\"",
     "types": "tsc --noEmit",
     "air": "node urbanhub-air/src/principal.ts",
-    "alertes": "node urbanhub-alertes/src/principal.ts"
+    "alertes": "node urbanhub-alertes/src/principal.ts",
+    "trafic": "node urbanhub-trafic/src/principal.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
