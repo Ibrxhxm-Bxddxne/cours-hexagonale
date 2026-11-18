@@ -9,6 +9,16 @@ npm run air       # service Qualité de l'air, port 8001
 npm run alertes   # service Alertes, port 8002
 ```
 
+## Service Trafic (TP 2)
+
+Dossier : `urbanhub-trafic/`, en TypeScript, comme les deux autres services.
+
+**Règle de gestion :** un tronçon de route est déclaré **congestionné** quand la vitesse moyenne
+relevée par ses capteurs sur les 15 dernières minutes tombe sous 40 % de sa vitesse limite ;
+UrbanHub signale alors la congestion une seule fois, jusqu'à ce que le tronçon redevienne fluide.
+
+Le détail du choix est dans [`docs/tp2-etape1-choix-du-service.md`](docs/tp2-etape1-choix-du-service.md).
+
 ## Rendus
 
 ### TP 1 : trois avantages de l'hexagone, prouvés
