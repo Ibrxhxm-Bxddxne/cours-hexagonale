@@ -146,3 +146,36 @@ Les documents des étapes sont dans le dossier `docs/` :
 - [étape 2 : les trois avantages et leurs preuves](docs/etape2-trois-avantages.md)
 - [étape 3 : les résultats des expériences](docs/etape3-resultats-experiences.md)
 - [étape 4 : la comparaison avec le service Alertes](docs/etape4-comparaison-backend.md)
+
+### TP 2 : votre service UrbanHub en hexagone, avec deux patrons
+
+| | |
+|---|---|
+| **Lien du dépôt** | https://github.com/Ibrxhxm-Bxddxne/cours-hexagonale |
+| **Empreinte du commit** | `9ddb939` (TP2 étape 7 : schéma et patrons justifiés dans le README) |
+| **Chemin du livrable** | ce README, section [« Service Trafic (TP 2) »](#service-trafic-tp-2) ; le code dans [`urbanhub-trafic/`](urbanhub-trafic/) |
+| **Commit du remplacement de l'adaptateur** | `197c622` (`etatsSqlite.ts` et `principal.ts` seulement) |
+
+Les livrables demandés :
+
+| Livrable | Où le trouver |
+|---|---|
+| Le code et ses tests qui passent | `urbanhub-trafic/src/` ; `npm test` : **67 / 67** |
+| · le centre | [`test/trafic.test.ts`](test/trafic.test.ts) (cas d'utilisation, en mémoire) |
+| · le contrat | [`test/contratDepotReleves.test.ts`](test/contratDepotReleves.test.ts) et [`test/contratEtatsTroncons.test.ts`](test/contratEtatsTroncons.test.ts) |
+| · la règle de dépendance | [`test/regleDependanceTrafic.test.ts`](test/regleDependanceTrafic.test.ts) |
+| Le commit du remplacement de l'adaptateur | `197c622`, cité ci-dessus et dans [« Remplacement d'un adaptateur »](#remplacement-dun-adaptateur-étape-6) |
+| La règle de gestion, le schéma, les deux patrons justifiés | ce README : [« Service Trafic (TP 2) »](#service-trafic-tp-2), [« Schéma »](#schéma), [« Les deux patrons »](#les-deux-patrons) |
+
+Un commit par étape :
+
+| Étape | Commit |
+|---|---|
+| 1. Le service et sa règle | `90487e3` |
+| 2. Le domaine et les ports | `a36311e` |
+| 3. Le cas d'utilisation, les tests en mémoire, la règle de dépendance | `f8274fc` |
+| 4. Le dépôt SQLite et son test de contrat | `ec1f715` |
+| 5. Les patrons Stratégie et Décorateur, la racine de composition | `9cc9bfa` |
+| 6. Le remplacement de l'adaptateur | `197c622`, puis `0201b45` (contrat et documentation) |
+| 7. Le schéma et les patrons justifiés | `9ddb939` |
+| 8. Le rendu | [`docs/tp2-etape8-rendu.md`](docs/tp2-etape8-rendu.md) |
