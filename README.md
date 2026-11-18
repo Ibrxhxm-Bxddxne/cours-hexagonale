@@ -179,3 +179,24 @@ Un commit par étape :
 | 6. Le remplacement de l'adaptateur | `197c622`, puis `0201b45` (contrat et documentation) |
 | 7. Le schéma et les patrons justifiés | `9ddb939` |
 | 8. Le rendu | [`docs/tp2-etape8-rendu.md`](docs/tp2-etape8-rendu.md) |
+
+### TP 3 : monolithe ou microservices, pour UrbanHub
+
+Le TP 3 se rend dans un **dépôt du groupe**, créé pour ce TP. Ses documents ont été écrits ici,
+dans [`docs/tp3/`](docs/tp3/), un commit par étape, puis copiés dans le dépôt du groupe.
+
+| | |
+|---|---|
+| **Lien du dépôt** | https://github.com/Ibrxhxm-Bxddxne/urbanhub-tp3 |
+| **Empreinte du commit** | `7bf1980` (dans le dépôt du groupe : TP3, livrables) |
+| **Chemin du livrable** | le README du dépôt du groupe ; ici, [`docs/tp3/`](docs/tp3/), [`k8s/trafic.yaml`](k8s/trafic.yaml) et [`Dockerfile.trafic`](Dockerfile.trafic) |
+
+| Étape | Commit (ici) |
+|---|---|
+| 1. Les contextes délimités et leurs données | `35413cd` |
+| 2. Le monolithe hexagonal et les microservices, dessinés | `21671d5` |
+| 3. Le tableau du 3.2, avec des mesures | `129ed24` |
+| 4. La vue d'ensemble et la gestion de chaque service | `2953a5d` |
+| 5. La stratégie de déploiement et le manifeste Kubernetes | `a8bbee7` |
+| 6. La conclusion | `079855e` |
+| 7. Le rendu | [`docs/tp3/etape7-rendu.md`](docs/tp3/etape7-rendu.md) |
