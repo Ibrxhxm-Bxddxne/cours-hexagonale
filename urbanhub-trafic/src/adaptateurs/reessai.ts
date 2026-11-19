@@ -1,4 +1,5 @@
 import type { PublicateurSignalements, Signalement } from "../ports.ts";
+import { CircuitOuvert, RefusDefinitif } from "./erreurs.ts";
 
 const dormir = (ms: number) => new Promise<void>((fin) => setTimeout(fin, ms));
 
@@ -23,7 +24,10 @@ export class PublicateurAvecReessai implements PublicateurSignalements {
       try {
         return await this.#interne.publier(s);
       } catch (erreur) {                    // reseau coupe, delai depasse, refus
-        if (essai >= this.#essais) throw erreur;   // on n'avale pas l'erreur
+        // BORNE 1 : ce qui ne peut pas reussir en retentant remonte tout de suite, sans pause
+        if (erreur instanceof RefusDefinitif || erreur instanceof CircuitOuvert) throw erreur;
+        // BORNE 2 : un nombre d'essais fixe ; au dernier, on n'avale pas l'erreur
+        if (essai >= this.#essais) throw erreur;
         await this.#attendre(this.#pauseMs * essai); // 500 ms, puis 1000 ms...
       }
     }

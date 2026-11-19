@@ -6,6 +6,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import type { AddressInfo } from "node:net";
 import { PublicateurSignalementsHttp } from "../urbanhub-trafic/src/adaptateurs/publicationHttp.ts";
 import { signalement } from "../urbanhub-trafic/src/domaine.ts";
+import { RefusDefinitif } from "../urbanhub-trafic/src/adaptateurs/erreurs.ts";
 
 const bouchon = signalement({ troncon: "rue-de-rivoli-1", vitesseMoyenne: 9,
   vitesseLimite: 30, debut: "2026-11-19T08:10:00" });
@@ -37,6 +38,13 @@ test("il envoie le signalement en JSON, identifiant compris, par POST", async ()
 test("un refus du destinataire (500) leve une erreur : rien n'est avale", async () => {
   const d = await destinataire((_req, rep) => rep.writeHead(500).end());
   await assert.rejects(new PublicateurSignalementsHttp(d.url).publier(bouchon), /500/);
+  d.fermer();
+});
+
+test("TP4 etape 3 : un refus 4xx (422) devient un RefusDefinitif, que le reessai ne retentera pas", async () => {
+  const d = await destinataire((_req, rep) => rep.writeHead(422).end());
+  await assert.rejects(new PublicateurSignalementsHttp(d.url).publier(bouchon),
+    (e: unknown) => e instanceof RefusDefinitif && e.statut === 422);
   d.fermer();
 });
 
