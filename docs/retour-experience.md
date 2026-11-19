@@ -11,6 +11,7 @@ dépôt : un test, un commit ou une trace.
 | 1 | Ce que j'ai construit : le besoin, le découpage, les patrons, la communication |
 | 2 | Les bénéfices observés, avec leurs preuves ; les contraintes, avec leur coût |
 | 3 | La comparaison avec Segment ; trois recommandations pour un futur projet UrbanHub |
+| 4 | La grille EC01 : ce que mes TP prouvent déjà pour C4.1 et C5.1, où, et ce qui manque |
 
 ---
 
@@ -244,3 +245,87 @@ comparaison n'aurait rien appris.
 - R1 dit **quand** découper.
 - R2 dit **comment** les services se parlent une fois découpés.
 - R3 dit **ce qui** protège le contrat quand ils ne partagent plus de dépôt.
+
+---
+
+## 4. La grille EC01 : ce que mes TP prouvent déjà pour C4.1 et C5.1
+
+**L'épreuve.** L'EC01, « Conception et modélisation d'architecture logicielle », valide le bloc
+BC01.
+- C'est une mise en situation écrite et orale, individuelle : 3 heures, seul, surveillé.
+- Rien n'est fourni : je pars de **mon dépôt UrbanHub**.
+- La grille compte 11 critères, notés 0, 2, 3 ou 5. Ce module y apporte deux critères :
+  - **C4.1** « Adéquation aux besoins et contraintes projet » ;
+  - **C5.1** « Argumentation technique (performance, sécurité, maintenabilité) ».
+
+**Ce qui compte : la justification.** Un choix sans raison écrite ne rapporte pas de point. J'ai
+donc lu chaque ligne ci-dessous avec les règles du cours :
+- un choix, une raison ;
+- une preuve par affirmation ;
+- le coût écrit à côté.
+
+La dernière colonne dit ce que mes TP **ne prouvent pas encore**. C'est ce que le dossier de
+l'EC01 devra écrire ou ajouter.
+
+### 4.1 C4.1 : adéquation aux besoins et contraintes projet
+
+| Ce qu'on attend | Ce que mes TP prouvent déjà | Où | Ce qui manque |
+|---|---|---|---|
+| **Le besoin est écrit, et vérifiable** | La règle de congestion tient en une phrase, avec un exemple chiffré : 08:00 à 08:30 sur `boulevard-voltaire-3`. Cet exemple est **devenu un test** | [TP 2, étape 1](tp2-etape1-choix-du-service.md) ; [`trafic.test.ts`](../test/trafic.test.ts) : « l'exemple de l'étape 1 : un seul signalement, à 08:10, moyenne 18,33 » | Un besoin **non fonctionnel chiffré**, venu d'un client : délai maximal pour prévenir un opérateur, disponibilité attendue. Je les ai déduits, personne ne les a demandés |
+| **Le besoin « une seule fois » est tenu, même dans les cas difficiles** | Un seul signalement par épisode, même après un **redémarrage**. Un seul message aux opérateurs, même en cas de **doublon**, d'envoi **simultané** ou de **rejeu** | [`contratEtatsTroncons.test.ts`](../test/contratEtatsTroncons.test.ts) (redémarrage) ; commit `197c622` ; [`idempotenceNotifications.test.ts`](../test/idempotenceNotifications.test.ts) ; [trace du rejeu](tp4/trace-etape6.txt) | La perte possible si le processus meurt entre la réservation et l'envoi (C4) : elle est écrite et acceptée, mais **non testée** |
+| **L'architecture est choisie d'après le besoin**, pas par habitude | Le service passe les trois questions du cours (1.4) **avant** d'être écrit en hexagone. | [TP 2, étape 1](tp2-etape1-choix-du-service.md), « Pourquoi ce service mérite un hexagone » | — |
+| **Le découpage est choisi d'après les contraintes du projet** | Le monolithe hexagonal est retenu pour 3 tronçons, un groupe de 3 ou 4 personnes et SQLite. C'est mesuré, pas affirmé : 1 µs contre 1 ms par appel, et les pannes partielles mesurées | [TP 3, étapes 3 et 6](tp3/etape6-conclusion.md) | — |
+| **On sait quand le choix cessera d'être adapté** | **5 signaux observables**, chacun avec son seuil et ce qu'on ferait. Plus un signal inverse : quand regrouper | [TP 3, étape 6](tp3/etape6-conclusion.md), § 2 | Les métriques de ces signaux (95ᵉ centile, incidents) ne sont **pas encore produites** par le code |
+| **Les contraintes techniques du projet sont respectées** | Même langage que l'existant (TypeScript sous Node.js). Aucune dépendance, sauf `kafkajs`, choisi parce qu'il s'installe sans outil de compilation sur les postes Windows. Un seul dépôt, comme l'a demandé l'enseignant | [TP 4, étape 5](tp4/etape5-adaptateur-kafka.md), § 1 ; [`package.json`](../package.json) | — |
+| **Le déploiement est adapté aux contraintes** | La stratégie par **recréation** est choisie **à cause** de SQLite : un seul fichier, donc une seule copie. Son prix est écrit : environ 10 s de coupure | [TP 3, étape 5](tp3/etape5-deploiement-et-manifeste.md) ; [`k8s/trafic.yaml`](../k8s/trafic.yaml) | Le manifeste n'a **pas été appliqué** sur un vrai cluster. Seul `docker compose` a tourné (TP 4, étape 6) |
+
+### 4.2 C5.1 : argumentation technique
+
+#### Performance
+
+| Ce que mes TP prouvent déjà | Où | Ce qui manque |
+|---|---|---|
+| Le coût du réseau, **mesuré** : un appel de fonction prend environ 1 µs, un appel HTTP local environ 1 ms | [TP 3, étape 3](tp3/etape3-tableau-comparatif.md), [`experience-etape3.ts`](tp3/experience-etape3.ts) | — |
+| Le pire cas en HTTP : **7,54 s** puis 500 pour le capteur quand Notifications est coupé. Le coupe-circuit le ramène à 0 ms, avec 5 requêtes au lieu de 30 | [trace](tp4/trace-etape6.txt) ; [TP 4, étape 3](tp4/etape3-reessai-et-coupe-circuit.md) | — |
+| Kafka découple le temps de réponse du capteur de la santé du lecteur : **202 en 0,06 s** pendant la panne | [TP 4, étape 6](tp4/etape6-scenario-panne-rejeu.md) | — |
+| La base est indexée pour la requête de la fenêtre, avec l'index `releve (troncon, horodatage)` | [`depotSqlite.ts`](../urbanhub-trafic/src/adaptateurs/depotSqlite.ts) | Un index **affirmé**, pas mesuré |
+| La limite est identifiée : **SQLite** bloque la montée en charge, dans les deux dessins | [TP 3, étape 3](tp3/etape3-tableau-comparatif.md), § 3 | **Aucun test de charge** : ni débit maximal, ni 95ᵉ centile. Le signal n° 3 du TP 3 repose pourtant sur un seuil de 200 ms au 95ᵉ centile |
+
+#### Sécurité
+
+| Ce que mes TP prouvent déjà | Où | Ce qui manque |
+|---|---|---|
+| **Les entrées sont validées dans le domaine** : un relevé ou un signalement mal formé est refusé en 422, et rien n'est enregistré | [`domaine.ts`](../urbanhub-trafic/src/domaine.ts) (`ReleveInvalide`) ; [`entreeNotifications.test.ts`](../test/entreeNotifications.test.ts) | — |
+| **Pas d'injection SQL** : toutes les requêtes sont préparées, avec des paramètres `?`. Aucune n'est construite par concaténation | les 3 adaptateurs SQLite | Pas de test qui le **prouve** (une entrée piégée, par exemple) |
+| **Une erreur 500 ne divulgue rien** : la réponse est vide, et le détail ne va qu'au journal | [`entreeHttp.ts`](../urbanhub-trafic/src/adaptateurs/entreeHttp.ts) | — |
+| **Les conteneurs ne tournent pas en root** (`USER node`). L'image ne contient pas les dépendances de développement (`npm ci --omit=dev`). La configuration est montée en lecture seule dans Kubernetes, et la mémoire est plafonnée (256 Mi) | [`Dockerfile.trafic`](../Dockerfile.trafic), [`Dockerfile.notifications`](../Dockerfile.notifications), [`k8s/trafic.yaml`](../k8s/trafic.yaml) | — |
+| **La surface des dépendances est minimale** : 1 paquet en production, et `npm audit` ne signale aucune vulnérabilité | [`package.json`](../package.json) | — |
+| — | — | **Aucune authentification** sur `POST /releves` ni sur `POST /signalements`. N'importe quel poste du réseau peut faire prévenir les opérateurs |
+| — | — | **Le corps des requêtes est lu sans limite de taille** (`lireCorps`) : un envoi énorme peut épuiser la mémoire |
+| — | — | **Kafka en clair** (`PLAINTEXT`), sans TLS ni droits par topic : n'importe qui peut écrire dans `signalements` |
+
+#### Maintenabilité
+
+| Ce que mes TP prouvent déjà | Où | Ce qui manque |
+|---|---|---|
+| Remplacer un adaptateur ne touche que **2 fichiers** | commit `197c622` | — |
+| Passer de HTTP à Kafka ne touche **aucun** centre, et les Décorateurs servent tels quels | `git diff --stat e04d6e8 646ba3a` (partie 2, B3 et B4) | — |
+| La règle de dépendance est **vérifiée par un test**, et elle attrape une faute volontaire | [`regleDependanceTrafic.test.ts`](../test/regleDependanceTrafic.test.ts), [`regleDependanceNotifications.test.ts`](../test/regleDependanceNotifications.test.ts) | — |
+| Les adaptateurs réels sont jugés par des **tests de contrat**, sur les mêmes cas que leur version en mémoire | [`contratDepotReleves.test.ts`](../test/contratDepotReleves.test.ts), [`contratEtatsTroncons.test.ts`](../test/contratEtatsTroncons.test.ts), [`contratHistorique.test.ts`](../test/contratHistorique.test.ts) | — |
+| Une règle métier se change par une **nouvelle classe** (Stratégie) | [`patronsTrafic.test.ts`](../test/patronsTrafic.test.ts) | — |
+| Chaque étape a son commit et sa fiche ; 127 tests en environ 2,2 s | `git log` ; `docs/` | — |
+| — | — | **Le contrat entre services** n'est ni écrit ni versionné (C7, recommandation R3) |
+| — | — | Les 7 variables d'environnement ne sont **documentées nulle part** en un seul endroit (C2) |
+
+### 4.3 Le bilan pour l'EC01
+
+| Critère | Ce qui est solide | Ce qu'il faut ajouter avant l'épreuve, ou au moins écrire comme limite |
+|---|---|---|
+| **C4.1** | le besoin devenu test ; un découpage et un déploiement choisis d'après les contraintes ; des signaux pour changer d'avis | les besoins non fonctionnels chiffrés ; le manifeste jamais appliqué |
+| **C5.1, performance** | des mesures, pas des impressions | un test de charge, même petit |
+| **C5.1, sécurité** | la validation, les requêtes préparées, le non-root, une seule dépendance | **le point le plus faible** : pas d'authentification, pas de limite de taille, Kafka en clair |
+| **C5.1, maintenabilité** | **le point le plus fort** : chaque affirmation a son commit ou son test | le contrat entre services ; la liste des variables d'environnement |
+
+**La sécurité n'a été demandée par aucun des TP 2 à 4.** Elle n'apparaît donc que par effet de
+bord. Le plan du dossier (question 5) devra la traiter comme une partie à part entière, avec ses
+manques écrits et leur prix.
