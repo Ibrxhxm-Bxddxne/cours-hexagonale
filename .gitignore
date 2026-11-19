@@ -1,1 +1,3 @@
 node_modules/
+# les bases SQLite que les services creent dans le dossier courant (npm run air, trafic, notifications)
+*.db

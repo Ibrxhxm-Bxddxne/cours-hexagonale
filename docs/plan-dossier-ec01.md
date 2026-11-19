@@ -70,7 +70,7 @@ les présentera pas comme faites.
 |---|---|---|---|---|
 | A-1 | **Hexagone** pour Trafic et Notifications : le centre n'importe aucune technique | Le métier se teste sans base ni réseau, et les techniques changent (stockage, transport) sans toucher au centre | Plus de code autour du centre que dedans : 326 lignes contre 226 (Trafic), un adaptateur en mémoire par port | **M** test en mémoire environ 50 fois plus rapide (TP 1) ; **C** `197c622` : 2 fichiers |
 | A-2 | La **règle de dépendance vérifiée par un test**, qui interdit aussi les paquets npm dans le centre | Une frontière tenue par la relecture finit par céder ; une machine ne l'oublie pas | Une expression régulière à maintenir, qui ne voit que les imports écrits en clair | **T** `regleDependance*.test.ts` ; **M** un `faute.ts` qui importe `kafkajs` donne 1 échec |
-| A-3 | **Une racine de composition par programme**, réglée par des variables d'environnement | Un seul fichier décide de la base, de la règle et du transport | 7 variables à documenter (`PORT`, `REGLE`, `BASE_RELEVES`, `BASE_NOTIFICATIONS`, `URL_SIGNALEMENTS`, `KAFKA_BROKERS`, `KAFKA_GROUPE`) | **F** `principal.ts` ; **C** `646ba3a` : le transport choisi là, et seulement là |
+| A-3 | **Une racine de composition par programme**, réglée par des variables d'environnement | Un seul fichier décide de la base, de la règle et du transport | 8 variables à documenter (`PORT`, `REGLE`, `TRONCONS`, `BASE_RELEVES`, `BASE_NOTIFICATIONS`, `URL_SIGNALEMENTS`, `KAFKA_BROKERS`, `KAFKA_GROUPE`) | **F** `principal.ts` ; **C** `646ba3a` : le transport choisi là, et seulement là |
 | A-4 | **Un test de contrat** pour chaque port qui a un adaptateur réel | L'adaptateur en mémoire et l'adaptateur SQLite doivent se comporter pareil, sinon les tests du centre mentent | 61 lignes de contrat pour un adaptateur de 31 | **T** `contratDepotReleves`, `contratEtatsTroncons`, `contratHistorique` |
 | A-5 | **SQLite** (`node:sqlite`), une base par service | Aucun serveur, aucune dépendance ; assez pour 3 tronçons ; les données survivent à un redémarrage | Une seule copie possible par service : cela bloque la montée en charge et la mise à jour progressive | **T** « les relevés survivent à un redémarrage » ; **M** TP 3, étape 3, § 3 |
 
@@ -178,6 +178,7 @@ chaque correction. Aucun TP ne demandait la sécurité : cette partie est **ajou
 | HTTP ne rattrape pas un signalement perdu (K-2) | Pas de boîte d'envoi | une boîte d'envoi dans la base de Trafic, ou Kafka (K-3) |
 | Le manifeste jamais appliqué (E-6) | Pas de cluster sur le poste | kind ou minikube |
 | Les manques de sécurité S-5 à S-7 | Hors du périmètre des TP | les choix S-5 à S-7, dans cet ordre |
+| **Alertes (le code du cours) s'arrête sur une requête au corps vide** | Son entrée HTTP ne rattrape pas l'erreur de `JSON.parse` ; constaté en rejouant le README (TP 5, étape 6) | rattraper l'erreur dans l'adaptateur et répondre 422, comme Trafic et Notifications, avec un test « corps vide : 422, et le service répond encore » |
 
 ---
 
@@ -185,14 +186,15 @@ chaque correction. Aucun TP ne demandait la sécurité : cette partie est **ajou
 
 ### A. Les commandes à rejouer
 
-Ce sont les commandes du README, vérifiées sur un poste propre : un clone neuf, `npm ci`,
-`npm test`, les services, puis `docker compose`. Le résultat de cette vérification sera écrit ici
-(question 6 du TP 5).
+Les commandes sont dans le [README](../README.md#sur-un-poste-propre). Elles ont été rejouées sur un
+clone neuf : `npm ci`, les trois scripts de tests, les quatre services, puis `docker compose`. Le
+résultat et les corrections apportées au README sont dans
+[`tp5/etape6-ia-et-poste-propre.md`](tp5/etape6-ia-et-poste-propre.md).
 
 ### B. La déclaration d'usage des assistants IA
 
-Les outils, les usages, les demandes principales, ce qui a été gardé ou rejeté, et pourquoi.
-Elle est obligatoire dans le README (question 6 du TP 5).
+Elle est dans le [README](../README.md#déclaration-dusage-des-assistants-ia), où le cours l'exige :
+les outils, les usages, les demandes principales, ce qui a été gardé ou rejeté, et pourquoi.
 
 ### C. L'index des preuves
 

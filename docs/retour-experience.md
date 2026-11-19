@@ -149,7 +149,7 @@ fichiers, des millisecondes, ou un défaut. Les chiffres viennent du dépôt
 | # | Contrainte | Ce qu'elle a coûté |
 |---|---|---|
 | C1 | **Il y a plus de code autour du centre que dans le centre.** | Trafic : **326** lignes d'adaptateurs pour 226 de centre. Notifications : 172 pour 155. Il faut un adaptateur en mémoire **par port** pour les tests, et un test de contrat par port réel : **61** lignes de contrat pour un adaptateur de 31 ([TP 2, étape 6](tp2-etape6-remplacement-adaptateur.md)) |
-| C2 | **Le chemin d'un appel est plus long à lire.** | Un signalement traverse le port, le réessai, le coupe-circuit, puis l'adaptateur : **4 fichiers** pour un seul `publier()`. Les trois racines de composition font 109 lignes et lisent **7 variables d'environnement** (`PORT`, `REGLE`, `BASE_RELEVES`, `BASE_NOTIFICATIONS`, `URL_SIGNALEMENTS`, `KAFKA_BROKERS`, `KAFKA_GROUPE`). Il faut toutes les documenter, sinon personne ne sait ce qui tourne en production |
+| C2 | **Le chemin d'un appel est plus long à lire.** | Un signalement traverse le port, le réessai, le coupe-circuit, puis l'adaptateur : **4 fichiers** pour un seul `publier()`. Les trois racines de composition font 109 lignes et lisent **8 variables d'environnement** (`PORT`, `REGLE`, `TRONCONS`, `BASE_RELEVES`, `BASE_NOTIFICATIONS`, `URL_SIGNALEMENTS`, `KAFKA_BROKERS`, `KAFKA_GROUPE`). Il faut toutes les documenter, sinon personne ne sait ce qui tourne en production |
 | C3 | **Un appel par le réseau est lent, et il peut échouer à moitié.** | Un appel de fonction prend environ 1 µs, un appel HTTP local environ 1 ms : **plus de 1 000 fois plus lent** ([TP 3, étape 3](tp3/etape3-tableau-comparatif.md)). Notifications coupé, le capteur attend **7,54 s** puis reçoit 500, alors que son relevé est déjà en base ([trace](tp4/trace-etape6.txt)) |
 | C4 | **Le réessai et Kafka obligent à l'idempotence, et elle a touché le centre.** | Le contrat du port `Historique` a changé (`enregistrer(): boolean`, `retirer()`), avec 30 lignes ajoutées dans `ports.ts` et `service.ts` (commit `e04d6e8`). **Une fenêtre reste ouverte** : si le processus meurt entre la réservation et l'envoi, l'incident est perdu (« au plus une fois ») ([TP 4, étape 4](tp4/etape4-idempotence.md), § 4) |
 | C5 | **En HTTP, un signalement perdu pendant la panne n'est pas rattrapé.** | Il n'est renvoyé qu'au relevé suivant, plus de 30 s après, et avec un début **faussé** : 09:04 au lieu de 09:02 ([TP 4, étape 6](tp4/etape6-scenario-panne-rejeu.md)). Il faudrait une boîte d'envoi, que je n'ai pas écrite |
@@ -302,6 +302,7 @@ l'EC01 devra écrire ou ajouter.
 | **La surface des dépendances est minimale** : 1 paquet en production, et `npm audit` ne signale aucune vulnérabilité | [`package.json`](../package.json) | — |
 | — | — | **Aucune authentification** sur `POST /releves` ni sur `POST /signalements`. N'importe quel poste du réseau peut faire prévenir les opérateurs |
 | — | — | **Le corps des requêtes est lu sans limite de taille** (`lireCorps`) : un envoi énorme peut épuiser la mémoire |
+| — | — | **Alertes, le service du cours, s'arrête net sur une requête au corps vide** : son `JSON.parse` n'est rattrapé par rien. Une seule requête mal formée coupe toutes les alertes. Constaté en rejouant le README (TP 5, étape 6). Trafic et Notifications, eux, répondent 422 et continuent |
 | — | — | **Kafka en clair** (`PLAINTEXT`), sans TLS ni droits par topic : n'importe qui peut écrire dans `signalements` |
 
 #### Maintenabilité
@@ -315,7 +316,7 @@ l'EC01 devra écrire ou ajouter.
 | Une règle métier se change par une **nouvelle classe** (Stratégie) | [`patronsTrafic.test.ts`](../test/patronsTrafic.test.ts) | — |
 | Chaque étape a son commit et sa fiche ; 127 tests en environ 2,2 s | `git log` ; `docs/` | — |
 | — | — | **Le contrat entre services** n'est ni écrit ni versionné (C7, recommandation R3) |
-| — | — | Les 7 variables d'environnement ne sont **documentées nulle part** en un seul endroit (C2) |
+| — | — | Les 8 variables d'environnement ne sont **documentées nulle part** en un seul endroit (C2) |
 
 ### 4.3 Le bilan pour l'EC01
 

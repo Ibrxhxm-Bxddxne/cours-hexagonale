@@ -10,13 +10,21 @@
 **Comment rejouer :**
 
 ```bash
+docker compose -f compose.tp4.yaml down -v            # AVANT : efface les bases d'une exécution précédente
 docker compose -f compose.tp4.yaml up -d --build      # Docker Desktop doit être démarré
 bash docs/tp4/scenario-etape6.sh                      # depuis Git Bash, à la racine du dépôt
-docker compose -f compose.tp4.yaml down -v            # pour repartir de zéro (-v : efface les bases)
+docker compose -f compose.tp4.yaml down -v            # APRÈS : ne pas laisser de bases derrière soi
 ```
+
+**La pile doit être neuve.** Sur une pile déjà utilisée, les tronçons sont déjà « congestionnés »
+dans les anciennes bases : aucun signalement ne part, et l'on croit à une panne. Depuis le TP 5
+(étape 6), le script **refuse** de tourner dans ce cas. Il donne alors les deux commandes à
+lancer.
 
 La trace complète est dans [`trace-etape6.txt`](trace-etape6.txt). Elle a été produite sur une
 pile **neuve** (`down -v`, puis `up --build`). Les extraits ci-dessous en viennent tels quels.
+Le scénario a ensuite été **rejoué par moi-même, avec des captures d'écran** : voir la
+[partie 7](#7-le-scénario-rejoué-par-moi-même-les-captures).
 
 ---
 
@@ -221,6 +229,84 @@ Le script les filtre.
 | La panne | HTTP : 7,54 s puis 5,53 s (500), circuit ouvert. Kafka : 202, LAG 1, notifié au retour |
 | Le rejeu | 3 messages relus, 3 doublons, 0 notification de plus, groupe `audit` intact |
 
+## 7. Le scénario rejoué par moi-même : les captures
+
+La trace des parties 2 à 4 a été produite par l'assistant (voir la déclaration d'usage de l'IA,
+dans le [README](../../README.md#déclaration-dusage-des-assistants-ia)). J'ai **rejoué moi-même**
+tout le scénario sur mon poste, en PowerShell, depuis `C:\Users\pc\Desktop\Hexagonale\node`, et
+j'ai pris ces captures. Les chiffres sont ceux de **mon** exécution. Ils diffèrent de la trace de
+quelques millisecondes, ce qui montre qu'il s'agit bien d'une autre exécution.
+
+### 7.1 La pile, construite à neuf
+
+![docker compose up --build : 4 images construites, 3 volumes créés, Kafka healthy](captures/01-pile-construite.png)
+
+- **Ce qu'on y voit :** les 4 images (`notifications`, `audit`, `trafic`, `trafic-http`), le réseau,
+  les **3 volumes créés** (et non réutilisés), et `kafka-1` **Healthy** après 23 s.
+- **Ce que cela prouve :** la pile part de zéro, ce que la garde du script exige.
+
+### 7.2 Le topic, les groupes et le scénario complet (partie 2)
+
+![Le topic à 3 partitions, les deux groupes, puis 6 relevés et 2 notifications](captures/02-topic-groupes-scenario.png)
+
+- `signalements` : **PartitionCount 3**. Deux groupes : `audit` et `notifications`.
+- 6 relevés lents → `202` en 0,03 à 0,14 s. Puis **2 notifications** :
+  - Rivoli en **partition 0**, offset 0 ;
+  - Voltaire en **partition 1**, offset 0.
+- `audit` lit les deux messages, avec leur clé. LAG = 0 dans les deux groupes. La partition 2
+  reste vide, comme prévu à l'étape 5.
+
+![Le même scénario, jusqu'au compte en base : 2 incidents](captures/03-scenario-complet-incidents.png)
+
+Une seconde exécution du scénario complet, sur une pile neuve, jusqu'au compte en base :
+**`lignes dans incident : 2`**.
+
+### 7.3 La panne : Notifications coupé (partie 3)
+
+![En HTTP : 202, 202, puis 500 en 7,54 s et 500 en 5,55 s](captures/04-panne-http.png)
+
+**En HTTP :** le 3ᵉ relevé lent doit publier. Le capteur reçoit **500 après 7,54 s** (3 essais × 2 s
+de délai, plus les pauses), puis **500 après 5,55 s**.
+
+![Par Kafka : 202 en moins de 0,08 s](captures/05-panne-kafka.png)
+
+**Par Kafka, pendant la même panne :** **202** en 0,03 à 0,08 s. Le signalement attend dans le
+topic.
+
+### 7.4 Le retour de Notifications, puis le rejeu (partie 4)
+
+![Le message Kafka lu au retour (09:02), le message HTTP au relevé suivant (09:04) ; 4 notifications avant le rejeu, 4 après](captures/06-retour-et-rejeu.png)
+
+- **Kafka :** `recu peripherique-porte-maillot:…T09:02:00 (partition 0 offset 1)`, lu **dès le
+  redémarrage**, avec le bon début (09:02).
+- **HTTP :** notifié seulement au relevé suivant, avec un début **faussé** (09:04).
+- **Le rejeu :** `lignes NOTIFICATION dans le journal : 4 avant le rejeu, 4 apres`. Le groupe
+  `notifications` a relu le topic, et **aucune** alerte n'est partie en double.
+
+![Le groupe audit n'a pas bougé ; 4 incidents en base](captures/07-rejeu-audit-intact.png)
+
+- **Le groupe `audit` n'a pas bougé** : mêmes offsets qu'avant le rejeu.
+- **`lignes dans incident : 4`** : 3 messages Kafka et 1 signalement HTTP, sans aucun doublon.
+
+### 7.5 La pile arrêtée, sans rien laisser
+
+![docker compose down -v : 5 conteneurs, 3 volumes et le réseau supprimés](captures/08-pile-arretee.png)
+
+**`down -v`** supprime les 5 conteneurs, **les 3 volumes** et le réseau. La prochaine exécution
+repartira de zéro.
+
+### Ma trace et celle de l'assistant, côte à côte
+
+| Mesure | Trace de l'assistant | Mon exécution (captures) |
+|---|---|---|
+| Notifications coupé, HTTP | 500 en 7,54 s, puis 5,53 s | 500 en **7,54 s**, puis **5,55 s** |
+| Notifications coupé, Kafka | 202 en 0,06 s | 202 en **0,03 à 0,08 s** |
+| Début de l'épisode, HTTP / Kafka | 09:04 / 09:02 | **09:04 / 09:02** |
+| Rejeu | 4 notifications avant, 4 après | **4 avant, 4 après** |
+| Incidents en base, à la fin | 4 | **4** |
+
+---
+
 ## Fichiers de cette étape
 
 | Fichier | Nouveau ou modifié |
@@ -230,3 +316,5 @@ Le script les filtre.
 | `Dockerfile.trafic` | modifié : `npm ci`, dossier du volume |
 | `urbanhub-notifications/src/principal.ts`, `audit.ts` | modifiés : arrêt propre sur `SIGTERM` |
 | `docs/tp4/scenario-etape6.sh`, `docs/tp4/trace-etape6.txt`, ce document | nouveaux |
+| `docs/tp4/captures/` (8 captures) et la partie 7 | ajoutés au TP 5, étape 6 : le scénario rejoué par moi-même |
+| `docs/tp4/scenario-etape6.sh` | modifié au TP 5, étape 6 : refuse une pile qui n'est pas neuve |

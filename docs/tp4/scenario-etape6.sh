@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# TP 4, etape 6 : le scenario complet, la panne, le rejeu. Prerequis : la pile lancee par
+# TP 4, etape 6 : le scenario complet, la panne, le rejeu. Prerequis : une pile NEUVE
+#   docker compose -f compose.tp4.yaml down -v          (efface les bases d'une execution precedente)
 #   docker compose -f compose.tp4.yaml up -d --build
 # Lancer depuis la racine du depot (Git Bash) : bash docs/tp4/scenario-etape6.sh
 export MSYS_NO_PATHCONV=1                       # Git Bash : ne pas reecrire /opt/kafka/... en C:/...
@@ -23,6 +24,17 @@ incidents() {
     const b=new DatabaseSync('/donnees/notifications.db');
     console.log('  lignes dans incident : ' + b.prepare('select count(*) n from incident').get().n)"
 }
+
+# Garde (TP 5, etape 6) : sur une pile DEJA utilisee, les anciennes bases (volumes) faussent tout.
+# Les troncons y sont deja "congestionnes" : aucun signalement ne part, et l'on croit a une panne.
+DEJA=$($DC exec -T notifications node --no-warnings -e "const {DatabaseSync}=require('node:sqlite');
+  console.log(new DatabaseSync('/donnees/notifications.db').prepare('select count(*) n from incident').get().n)" 2>/dev/null | tr -d '\r')
+if [ "$DEJA" != "0" ]; then
+  echo "La pile n'est pas neuve (incidents deja en base : ${DEJA:-pile non lancee ?}). Repartir de zero :"
+  echo "  docker compose -f compose.tp4.yaml down -v"
+  echo "  docker compose -f compose.tp4.yaml up -d --build"
+  exit 1
+fi
 
 echo "===== 0. Le topic et les groupes"
 $KAFKA/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic signalements | awk 'NR==1' 

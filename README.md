@@ -3,6 +3,28 @@
 Services **Qualité de l'air** (`urbanhub-air/`) et **Alertes** (`urbanhub-alertes/`), en TypeScript,
 exécutés par Node.js (version 22.18 ou plus).
 
+### Sur un poste propre
+
+**Prérequis :**
+- **Node.js 22.18 ou plus** : il exécute le TypeScript sans compilation, et fournit `node:sqlite` ;
+- **Git** ;
+- **Docker**, seulement pour la pile du TP 4.
+
+```bash
+git clone https://github.com/Ibrxhxm-Bxddxne/cours-hexagonale.git
+cd cours-hexagonale
+npm ci            # obligatoire : installe kafkajs (sans lui, `npm test` échoue : 122 tests sur 123 passent, puis le fichier des tests Kafka plante)
+```
+
+Vérifié sur un clone neuf : `npm test` donne 127 / 127, `test:trafic` 65, `test:notifications`
+38, et les quatre services répondent. Le détail est dans
+[`docs/tp5/etape6-ia-et-poste-propre.md`](docs/tp5/etape6-ia-et-poste-propre.md).
+
+Chaque service crée sa base SQLite (`mesures.db`, `releves.db`, `notifications.db`) dans le
+dossier courant. Ces fichiers sont ignorés par git.
+
+### Les commandes
+
 ```bash
 npm test          # toute la suite de tests
 npm run air       # service Qualité de l'air, port 8001
@@ -12,6 +34,20 @@ npm run notifications       # service Notifications, port 8004 (TP 4)
 npm run test:trafic         # les tests du seul service Trafic
 npm run test:notifications  # les tests du seul service Notifications
 docker compose -f compose.tp4.yaml up -d --build   # Trafic, Notifications et Kafka (TP 4)
+docker compose -f compose.tp4.yaml down -v         # arrêter, ET effacer les bases (sinon elles resservent)
+```
+
+**Pour voir une notification avec la pile Docker,** il faut **3 relevés lents en 15 minutes**.
+L'image de Trafic tourne avec `REGLE=avec-minimum` (le patron Stratégie, plus bas). Un seul
+relevé lent ne déclenche donc rien, et c'est voulu. Le scénario complet se rejoue avec
+[`docs/tp4/scenario-etape6.sh`](docs/tp4/scenario-etape6.sh).
+
+```bash
+for h in 08:00 08:05 08:10; do
+  curl -X POST localhost:8003/releves -H 'Content-Type: application/json' \
+    -d "{\"troncon\":\"rue-de-rivoli-1\",\"vitesse\":8,\"horodatage\":\"2026-11-19T$h:00\"}"
+done
+docker compose -f compose.tp4.yaml logs notifications   # recu ... (partition 0 offset 0), puis NOTIFICATION
 ```
 
 ## Service Trafic (TP 2)
@@ -166,7 +202,7 @@ flowchart LR
 |---|---|
 | **Les deux services et leurs tests verts** | [`urbanhub-trafic/`](urbanhub-trafic/) et [`urbanhub-notifications/`](urbanhub-notifications/). `npm test` : **127 / 127** ; `npm run test:trafic` : 65 ; `npm run test:notifications` : 38 |
 | **Les deux adaptateurs de publication** | HTTP : [`publicationHttp.ts`](urbanhub-trafic/src/adaptateurs/publicationHttp.ts) (délai 2 s) ; Kafka : [`publicationKafka.ts`](urbanhub-trafic/src/adaptateurs/publicationKafka.ts) (clé = tronçon, topic à 3 partitions) |
-| **Les traces** du scénario, de la panne et du rejeu | [`docs/tp4/trace-etape6.txt`](docs/tp4/trace-etape6.txt), commentées dans [`etape6-scenario-panne-rejeu.md`](docs/tp4/etape6-scenario-panne-rejeu.md) ; à rejouer avec [`scenario-etape6.sh`](docs/tp4/scenario-etape6.sh) |
+| **Les traces** du scénario, de la panne et du rejeu | [`docs/tp4/trace-etape6.txt`](docs/tp4/trace-etape6.txt), commentées dans [`etape6-scenario-panne-rejeu.md`](docs/tp4/etape6-scenario-panne-rejeu.md) ; à rejouer avec [`scenario-etape6.sh`](docs/tp4/scenario-etape6.sh) ; **rejoué par moi-même**, avec 8 captures d'écran : [`docs/tp4/captures/`](docs/tp4/captures/), commentées dans la partie 7 de la fiche |
 | **Les défis et leurs solutions** | le tableau ci-dessous |
 
 ### Ce que les traces montrent
@@ -191,6 +227,79 @@ flowchart LR
 | Une bibliothèque (`kafkajs`) pourrait entrer dans le centre | elle n'est importée que dans les racines de composition ; la règle de dépendance interdit désormais tout paquet npm dans le centre | [étape 5](docs/tp4/etape5-adaptateur-kafka.md) |
 | **Le rejeu était refusé** : « group is inactive… current state is Stable » | **arrêt propre** : sur `SIGTERM`, le consommateur quitte son groupe | 2ᵉ essai : groupe `Empty`, rejeu accepté ([étape 6](docs/tp4/etape6-scenario-panne-rejeu.md)) |
 | Les images ne tournaient pas : `kafkajs` absent, volume non inscriptible | `npm ci --omit=dev` ; `chown node:node /donnees` | la pile, construite à neuf, démarre ses 5 conteneurs |
+
+## Déclaration d'usage des assistants IA
+
+Cette déclaration est **obligatoire** (EC01, règle 05 : « dites l'outil, son usage, vos demandes
+principales, ce que vous avez gardé ou rejeté, et pourquoi »).
+
+### Les outils
+
+| Outil | Où | Pour quels TP |
+|---|---|---|
+| **Claude Code** (Anthropic), modèle Claude Opus, dans l'extension VS Code | sur mon poste Windows, dans ce dépôt | TP 3, TP 4 et TP 5 |
+| ⚠️ *à compléter par l'étudiant : outils utilisés aux TP 1 et 2, s'il y en a* | | TP 1, TP 2 |
+
+L'assistant pouvait **lire et écrire les fichiers du dépôt** et **lancer des commandes** : tests,
+`git status`, `git log`, `git diff`, Docker. Il **ne faisait ni commit ni push** : c'était ma
+consigne. Chaque commit a été relu et passé à la main.
+
+### Les usages, sans les minimiser
+
+L'assistant n'a pas seulement structuré : **il a écrit l'essentiel du code, des tests et des
+fiches** des TP 3 à 5, à partir des énoncés et des pages du cours que je lui donnais.
+
+| Usage | Exemples |
+|---|---|
+| Écrire du code et ses tests | le service Notifications, les Décorateurs (réessai, coupe-circuit), les adaptateurs Kafka, les tests de contrat et de la règle de dépendance |
+| Mesurer et tracer | les expériences du TP 3 (1 µs contre 1 ms), le scénario de panne et de rejeu du TP 4, les comptages `git diff` et `wc -l` du TP 5 |
+| Rédiger | une fiche par étape dans `docs/`, le README, le retour d'expérience, le plan du dossier |
+| Critiquer et vérifier | relire ses propres affirmations contre le code, et rejouer ce README sur un clone neuf |
+
+### Mes demandes principales
+
+- « Faites le TP *n* », avec l'énoncé et les pages du cours, puis **une question à la fois** :
+  « maintenant faites la *n*ᵉ question ».
+- **Après chaque étape, un commit qui contient une traçabilité de ce qu'on a fait** : d'où les
+  fiches de `docs/tp3/`, `docs/tp4/` et `docs/tp5/`.
+- « Ne faites pas de `git push` » : je garde la main sur ce qui est publié.
+- Travailler dans **un seul dépôt** pour tout le module, comme l'enseignant l'a demandé.
+
+### Ce que j'ai gardé, rejeté ou fait corriger
+
+| Décision | Pourquoi |
+|---|---|
+| **Rejeté :** le rendu du TP 3 dans un dépôt de groupe séparé (`urbanhub-tp3`) | l'enseignant demande un seul dépôt. Le rendu a été refait ici (commit `bbca6ce`), sans réécrire l'historique |
+| **Gardé :** une preuve (test, commit, trace) derrière chaque affirmation | c'est la règle 02 du cours, et c'est elle qui a fait trouver les erreurs ci-dessous |
+| **Corrigé :** les erreurs de l'assistant, trouvées en vérifiant | voir le tableau suivant |
+
+Les erreurs de l'assistant, trouvées en vérifiant :
+
+| Erreur | Comment elle a été vue | Correction |
+|---|---|---|
+| Une fiche (TP 4, étape 2) affirmait qu'un test était dans deux scripts alors qu'il n'y était pas | en relançant les scripts | test ajouté au script |
+| La règle de dépendance laissait passer un paquet npm dans le centre | par un fichier fautif volontaire | règle renforcée (TP 4, étape 5) |
+| Une mesure prenait la mauvaise plage de commits, et faisait croire que Kafka avait touché le centre | en relisant le `git diff` | plage corrigée (TP 5, étape 2) |
+| Un chiffre (800 ms) mesuré à l'échelle du test, présenté sans le dire | en relisant la fiche source | précisé : 7,5 s en vrai |
+| Une phrase attribuée au cours sans source | relecture | retirée |
+| Un test cité comme preuve qui concernait un autre service | en cherchant le test réel | marqué « à ajouter » (TP 5, étape 5) |
+| Ce README oubliait `npm ci` ; le retour d'expérience et le plan comptaient 7 variables d'environnement au lieu de 8 | en **rejouant ce README sur un clone neuf** | corrigé (TP 5, étape 6) |
+| Pendant cette vérification, l'assistant a voulu arrêter **tous** les processus Node du poste | la commande a été bloquée par les permissions | relancée en n'arrêtant que ses propres processus |
+
+### Ce que je retiens de cet usage
+
+- **La vérification n'est pas déléguée.** Ce qui a rendu l'assistant utile, c'est d'exiger une
+  preuve rejouable. Toutes les erreurs ci-dessus ont été trouvées ainsi.
+- **Le cours recommande « l'IA pour structurer : demandez-lui de critiquer, pas d'écrire à votre
+  place ».** Mon usage est allé plus loin. Pour l'EC01, seul et en 3 heures, je dois pouvoir
+  défendre **chaque choix** du [plan du dossier](docs/plan-dossier-ec01.md) sans assistant.
+- **Ce que j'ai refait moi-même :** le scénario complet du TP 4 (pile neuve, scénario, panne,
+  rejeu, arrêt), sur mon poste, avec 8 captures d'écran
+  ([TP 4, étape 6, partie 7](docs/tp4/etape6-scenario-panne-rejeu.md#7-le-scénario-rejoué-par-moi-même-les-captures)).
+  Mes chiffres concordent avec la trace de l'assistant : 7,54 s, 09:02 contre 09:04, 4 notifications
+  avant et après le rejeu.
+- ⚠️ *À compléter par l'étudiant : ce que j'ai relu, refait ou compris moi-même en plus de ce scénario, et ce que je
+  dois encore travailler avant l'épreuve.*
 
 ## Rendus
 
