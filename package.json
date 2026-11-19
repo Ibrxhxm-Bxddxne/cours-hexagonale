@@ -8,6 +8,8 @@
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.ts\"",
+    "test:trafic": "node --test test/trafic.test.ts test/contratDepotReleves.test.ts test/contratEtatsTroncons.test.ts test/patronsTrafic.test.ts test/regleDependanceTrafic.test.ts",
+    "test:notifications": "node --test test/notifications.test.ts test/contratHistorique.test.ts test/regleDependanceNotifications.test.ts",
     "types": "tsc --noEmit",
     "air": "node urbanhub-air/src/principal.ts",
     "alertes": "node urbanhub-alertes/src/principal.ts",

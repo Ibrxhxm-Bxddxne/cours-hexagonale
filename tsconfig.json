@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["urbanhub-air", "urbanhub-alertes", "urbanhub-trafic", "test"]
+  "include": ["urbanhub-air", "urbanhub-alertes", "urbanhub-trafic", "urbanhub-notifications", "test"]
 }
