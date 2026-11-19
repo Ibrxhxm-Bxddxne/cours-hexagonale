@@ -295,7 +295,7 @@ l'EC01 devra écrire ou ajouter.
 
 | Ce que mes TP prouvent déjà | Où | Ce qui manque |
 |---|---|---|
-| **Les entrées sont validées dans le domaine** : un relevé ou un signalement mal formé est refusé en 422, et rien n'est enregistré | [`domaine.ts`](../urbanhub-trafic/src/domaine.ts) (`ReleveInvalide`) ; [`entreeNotifications.test.ts`](../test/entreeNotifications.test.ts) | — |
+| **Les entrées sont validées dans le domaine** : un relevé ou un signalement mal formé est refusé en 422, et rien n'est enregistré | [`domaine.ts`](../urbanhub-trafic/src/domaine.ts) (`ReleveInvalide`) ; [`entreeNotifications.test.ts`](../test/entreeNotifications.test.ts) | côté Trafic, le refus d'un relevé invalide (`ReleveInvalide`, 422) n'est couvert par **aucun test** |
 | **Pas d'injection SQL** : toutes les requêtes sont préparées, avec des paramètres `?`. Aucune n'est construite par concaténation | les 3 adaptateurs SQLite | Pas de test qui le **prouve** (une entrée piégée, par exemple) |
 | **Une erreur 500 ne divulgue rien** : la réponse est vide, et le détail ne va qu'au journal | [`entreeHttp.ts`](../urbanhub-trafic/src/adaptateurs/entreeHttp.ts) | — |
 | **Les conteneurs ne tournent pas en root** (`USER node`). L'image ne contient pas les dépendances de développement (`npm ci --omit=dev`). La configuration est montée en lecture seule dans Kubernetes, et la mémoire est plafonnée (256 Mi) | [`Dockerfile.trafic`](../Dockerfile.trafic), [`Dockerfile.notifications`](../Dockerfile.notifications), [`k8s/trafic.yaml`](../k8s/trafic.yaml) | — |
