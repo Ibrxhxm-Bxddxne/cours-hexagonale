@@ -7,7 +7,8 @@ import { readFileSync, readdirSync } from "node:fs";
 
 const SRC = new URL("../urbanhub-trafic/src/", import.meta.url);
 const HORS_CENTRE = ["principal.ts"];   // la racine de composition a le droit de tout connaitre
-const INTERDIT = /from\s+["'](node:|\.\.?\/adaptateurs\/)|\bimport\(|\brequire\(|\bfetch\(/;
+// TP4 etape 5 : tout import qui n'est pas RELATIF (un paquet npm comme kafkajs) est aussi interdit
+const INTERDIT = /from\s+["'](node:|\.\.?\/adaptateurs\/|(?!\.))|\bimport\(|\brequire\(|\bfetch\(/;
 
 // La liste est lue sur le disque : un nouveau fichier du centre est verifie sans rien ajouter ici.
 const centre = readdirSync(SRC, { withFileTypes: true })
@@ -33,6 +34,7 @@ test("la regle attrape les fautes", () => {
     'import { DepotRelevesEnMemoire } from "./adaptateurs/depotMemoire.ts";',
     'await fetch("http://alertes:8002");',
     'const pg = await import("pg");',
+    'import kafkajs from "kafkajs";',
   ]) {
     assert.match(faute, INTERDIT, faute);
   }

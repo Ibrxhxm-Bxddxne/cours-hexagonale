@@ -1,27 +1,15 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { IncidentInvalide, incident } from "../domaine.ts";
-import type { Incident, RecevoirIncident } from "../ports.ts";
+import { IncidentInvalide } from "../domaine.ts";
+import type { RecevoirIncident } from "../ports.ts";
+import { incidentDepuisSignalement } from "./traductionTrafic.ts";
+
+export { incidentDepuisSignalement };   // la traduction est partagee avec l'entree Kafka (etape 5)
 
 const lireCorps = async (requete: IncomingMessage) => {
   let corps = "";
   for await (const morceau of requete) corps += morceau;
   return corps;
 };
-
-/**
- * La TRADUCTION a la frontiere du contexte : un signalement du service Trafic devient un Incident.
- * Le vocabulaire du trafic (troncon, vitesses) s'arrete ici ; le centre ne le voit jamais.
- */
-export function incidentDepuisSignalement(s: Record<string, unknown>): Incident {
-  const { identifiant, troncon, vitesseMoyenne, vitesseLimite, debut } = s;
-  if (typeof vitesseMoyenne !== "number" || !Number.isFinite(vitesseMoyenne)
-    || typeof vitesseLimite !== "number" || !Number.isFinite(vitesseLimite)) {
-    throw new IncidentInvalide("signalement de trafic sans vitesseMoyenne ni vitesseLimite");
-  }
-  return incident({ identifiant: identifiant as string, source: "trafic", lieu: troncon as string,
-    resume: `circulation a ${Math.round(vitesseMoyenne)} km/h pour ${vitesseLimite} km/h autorises`,
-    survenu: debut as string });
-}
 
 /** Adaptateur PRIMAIRE : traduit POST /signalements en appel du port RecevoirIncident. */
 export function gestionnaire(cas: RecevoirIncident, journal: (ligne: string) => void = console.log) {

@@ -7,8 +7,9 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 
 const SRC = new URL("../urbanhub-notifications/src/", import.meta.url);
-const HORS_CENTRE = ["principal.ts"];
-const INTERDIT = /from\s+["'](node:|\.\.?\/adaptateurs\/)|\bimport\(|\brequire\(|\bfetch\(/;
+const HORS_CENTRE = ["principal.ts", "audit.ts"];   // deux programmes, deux racines de composition
+// TP4 etape 5 : tout import qui n'est pas RELATIF (un paquet npm comme kafkajs) est aussi interdit
+const INTERDIT = /from\s+["'](node:|\.\.?\/adaptateurs\/|(?!\.))|\bimport\(|\brequire\(|\bfetch\(/;
 const AUTRE_SERVICE = /from\s+["'][^"']*urbanhub-(air|alertes|trafic)\//;
 
 const centre = readdirSync(SRC, { withFileTypes: true })
@@ -31,6 +32,7 @@ for (const fichier of centre) {
 
 test("la regle attrape les fautes", () => {
   assert.match('import { DatabaseSync } from "node:sqlite";', INTERDIT);
+  assert.match('import kafkajs from "kafkajs";', INTERDIT);
   assert.match('import { HistoriqueSqlite } from "./adaptateurs/historiqueSqlite.ts";', INTERDIT);
   assert.match('import type { Signalement } from "../../urbanhub-trafic/src/domaine.ts";', AUTRE_SERVICE);
 });
