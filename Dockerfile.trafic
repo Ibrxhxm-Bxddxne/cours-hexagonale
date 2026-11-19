@@ -1,11 +1,15 @@
-# Une image par microservice : ici, Trafic (TP 3, etape 5).
+# Une image par microservice : ici, Trafic (TP 3, etape 5 ; TP 4, etape 6).
 # Construire depuis la racine du depot : docker build -f Dockerfile.trafic -t urbanhub/trafic:<empreinte> .
 FROM node:24-slim
 WORKDIR /app
-COPY package.json ./
+# TP 4 : kafkajs est une dependance ; npm ci installe la version exacte du package-lock.json
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 COPY urbanhub-trafic ./urbanhub-trafic
 # La configuration vient de l'environnement, jamais du code.
 ENV PORT=8003 BASE_RELEVES=/donnees/releves.db REGLE=avec-minimum
+# le dossier du volume appartient a l'utilisateur node, sinon SQLite ne peut pas y ecrire
+RUN mkdir /donnees && chown node:node /donnees
 VOLUME /donnees
 EXPOSE 8003
 USER node

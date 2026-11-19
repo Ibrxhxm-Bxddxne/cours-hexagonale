@@ -1,0 +1,79 @@
+===== 0. Le topic et les groupes
+Topic: signalements	TopicId: faZnCsQeTh6EUe_LVP8FUw	PartitionCount: 3	ReplicationFactor: 1	Configs: 
+  groupe : audit
+  groupe : notifications
+
+===== 1. SCENARIO COMPLET (par Kafka) : de la mesure a l'alerte recue
+  -- regle avec-minimum : il faut 3 releves lents en 15 min
+  rue-de-rivoli-1 10 km/h a 08:00 -> 202 en 0.061718 s
+  rue-de-rivoli-1 8 km/h a 08:05 -> 202 en 0.036261 s
+  rue-de-rivoli-1 9 km/h a 08:10 -> 202 en 0.120845 s
+  boulevard-voltaire-3 15 km/h a 08:00 -> 202 en 0.035192 s
+  boulevard-voltaire-3 12 km/h a 08:05 -> 202 en 0.034366 s
+  boulevard-voltaire-3 10 km/h a 08:10 -> 202 en 0.073895 s
+  -- journal de Notifications (groupe notifications)
+  recu rue-de-rivoli-1:2026-11-19T08:10:00 (partition 0 offset 0)
+  NOTIFICATION rue-de-rivoli-1:2026-11-19T08:10:00 [trafic] rue-de-rivoli-1 : circulation a 9 km/h pour 30 km/h autorises (depuis 08:10)
+  recu boulevard-voltaire-3:2026-11-19T08:10:00 (partition 1 offset 0)
+  NOTIFICATION boulevard-voltaire-3:2026-11-19T08:10:00 [trafic] boulevard-voltaire-3 : circulation a 12 km/h pour 50 km/h autorises (depuis 08:10)
+  -- journal d'audit (groupe audit : partition, offset, cle)
+  [audit] partition 0 offset 0 cle rue-de-rivoli-1 : {"troncon":"rue-de-rivoli-1","vitesseMoyenne":9,"vitesseLim
+  [audit] partition 1 offset 0 cle boulevard-voltaire-3 : {"troncon":"boulevard-voltaire-3","vitesseMoyenne":12.
+  -- offsets des deux groupes (GROUP TOPIC PARTITION CURRENT-OFFSET LOG-END-OFFSET LAG)
+  GROUP TOPIC PARTITION CURRENT-OFFSET LOG-END-OFFSET LAG
+  notifications signalements 1 1 1 0
+  notifications signalements 0 1 1 0
+  notifications signalements 2 - 0 -
+  GROUP TOPIC PARTITION CURRENT-OFFSET LOG-END-OFFSET LAG
+  audit signalements 1 1 1 0
+  audit signalements 0 1 1 0
+  audit signalements 2 - 0 -
+  lignes dans incident : 2
+
+===== 2. PANNE : on coupe le second service (Notifications)
+  notifications arrete
+  -- en HTTP (trafic-http, port 8013) : 4 releves lents sur le peripherique
+  peripherique-porte-maillot 20 km/h a 09:00 -> 202 en 0.048398 s
+  peripherique-porte-maillot 20 km/h a 09:01 -> 202 en 0.040754 s
+  peripherique-porte-maillot 20 km/h a 09:02 -> 500 en 7.539036 s
+  peripherique-porte-maillot 20 km/h a 09:03 -> 500 en 5.532129 s
+  -- par Kafka (trafic, port 8003) : 3 releves lents sur le peripherique
+  peripherique-porte-maillot 20 km/h a 09:00 -> 202 en 0.030870 s
+  peripherique-porte-maillot 20 km/h a 09:01 -> 202 en 0.027242 s
+  peripherique-porte-maillot 20 km/h a 09:02 -> 202 en 0.060305 s
+  -- le message attend dans le topic (LAG du groupe notifications)
+  GROUP TOPIC PARTITION CURRENT-OFFSET LOG-END-OFFSET LAG
+  notifications signalements 1 1 1 0
+  notifications signalements 0 1 2 1
+  notifications signalements 2 - 0 -
+  -- on relance Notifications
+  recu peripherique-porte-maillot:2026-11-19T09:02:00 (partition 0 offset 1)
+  NOTIFICATION peripherique-porte-maillot:2026-11-19T09:02:00 [trafic] peripherique-porte-maillot : circulation a 20 km/h pour 70 km/h autorises (depuis 09:02)
+  -- en HTTP, le signalement n'est pas parti ; il repartira au prochain releve, circuit referme (> 30 s)
+  peripherique-porte-maillot 20 km/h a 09:04 -> 202 en 0.206367 s
+  recu peripherique-porte-maillot:2026-11-19T09:04:00
+  NOTIFICATION peripherique-porte-maillot:2026-11-19T09:04:00 [trafic] peripherique-porte-maillot : circulation a 20 km/h pour 70 km/h autorises (depuis 09:04)
+  lignes dans incident : 4
+
+===== 3. REJEU : le groupe notifications relit le topic depuis le debut
+  etat du groupe notifications apres l'arret : Empty (Kafka n'accepte le rejeu que si le groupe est vide)
+  GROUP                          TOPIC                          PARTITION  NEW-OFFSET     
+  notifications                  signalements                   1          0              
+  notifications                  signalements                   0          0              
+  notifications                  signalements                   2          0              
+  -- journal de Notifications apres le rejeu
+  recu rue-de-rivoli-1:2026-11-19T08:10:00 (partition 0 offset 0)
+  doublon ignore rue-de-rivoli-1:2026-11-19T08:10:00 (partition 0 offset 0)
+  recu peripherique-porte-maillot:2026-11-19T09:02:00 (partition 0 offset 1)
+  doublon ignore peripherique-porte-maillot:2026-11-19T09:02:00 (partition 0 offset 1)
+  -- lignes NOTIFICATION dans le journal : 4 avant le rejeu, 4 apres
+  GROUP TOPIC PARTITION CURRENT-OFFSET LOG-END-OFFSET LAG
+  notifications signalements 1 1 1 0
+  notifications signalements 0 2 2 0
+  notifications signalements 2 0 0 0
+  -- le groupe audit n'a pas bouge
+  GROUP TOPIC PARTITION CURRENT-OFFSET LOG-END-OFFSET LAG
+  audit signalements 1 1 1 0
+  audit signalements 0 2 2 0
+  audit signalements 2 - 0 -
+  lignes dans incident : 4

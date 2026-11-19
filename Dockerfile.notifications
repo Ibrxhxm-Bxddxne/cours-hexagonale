@@ -1,0 +1,13 @@
+# Une image par microservice : ici, Notifications (TP 4, etape 6).
+# La meme image sert aux deux groupes Kafka : « notifications » (principal.ts) et « audit » (audit.ts).
+FROM node:24-slim
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY urbanhub-notifications ./urbanhub-notifications
+ENV PORT=8004 BASE_NOTIFICATIONS=/donnees/notifications.db
+RUN mkdir /donnees && chown node:node /donnees
+VOLUME /donnees
+EXPOSE 8004
+USER node
+CMD ["node", "urbanhub-notifications/src/principal.ts"]

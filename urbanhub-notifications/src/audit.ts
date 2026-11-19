@@ -10,6 +10,9 @@ const groupe = process.env.KAFKA_GROUPE ?? "audit";
 const kafka = new kafkajs.Kafka({ clientId: "audit", brokers, logLevel: kafkajs.logLevel.WARN });
 const consommateur = kafka.consumer({ groupId: groupe });
 await consommateur.connect();
+const arreter = async () => { await consommateur.disconnect(); process.exit(0); };  // quitter le groupe
+process.once("SIGTERM", arreter);
+process.once("SIGINT", arreter);
 await consommateur.subscribe({ topic: "signalements", fromBeginning: true });
 await consommateur.run({ eachMessage: async ({ partition, message }) => {
   console.log(`[${groupe}] partition ${partition} offset ${message.offset} `

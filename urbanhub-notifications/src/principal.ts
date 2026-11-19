@@ -23,5 +23,11 @@ if (env.KAFKA_BROKERS) {
     brokers: env.KAFKA_BROKERS.split(","), logLevel: kafkajs.logLevel.WARN });
   const consommateur = kafka.consumer({ groupId: env.KAFKA_GROUPE ?? "notifications" });
   await consommateur.connect();
+  // ARRET PROPRE (TP 4, etape 6) : a l'arret du conteneur (SIGTERM), on QUITTE le groupe.
+  // Sans cela, Kafka croit le consommateur vivant jusqu'a la fin de sa session (environ 30 s) :
+  // le groupe reste « Stable », et on ne peut ni rejouer ses offsets ni reaffecter ses partitions.
+  const arreter = async () => { await consommateur.disconnect(); process.exit(0); };
+  process.once("SIGTERM", arreter);
+  process.once("SIGINT", arreter);
   await consommer(consommateur, service);
 }
