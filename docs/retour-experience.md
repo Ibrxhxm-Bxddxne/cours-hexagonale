@@ -10,6 +10,7 @@ dépôt : un test, un commit ou une trace.
 |---|---|
 | 1 | Ce que j'ai construit : le besoin, le découpage, les patrons, la communication |
 | 2 | Les bénéfices observés, avec leurs preuves ; les contraintes, avec leur coût |
+| 3 | La comparaison avec Segment ; trois recommandations pour un futur projet UrbanHub |
 
 ---
 
@@ -152,7 +153,7 @@ fichiers, des millisecondes, ou un défaut. Les chiffres viennent du dépôt
 | C4 | **Le réessai et Kafka obligent à l'idempotence, et elle a touché le centre.** | Le contrat du port `Historique` a changé (`enregistrer(): boolean`, `retirer()`), avec 30 lignes ajoutées dans `ports.ts` et `service.ts` (commit `e04d6e8`). **Une fenêtre reste ouverte** : si le processus meurt entre la réservation et l'envoi, l'incident est perdu (« au plus une fois ») ([TP 4, étape 4](tp4/etape4-idempotence.md), § 4) |
 | C5 | **En HTTP, un signalement perdu pendant la panne n'est pas rattrapé.** | Il n'est renvoyé qu'au relevé suivant, plus de 30 s après, et avec un début **faussé** : 09:04 au lieu de 09:02 ([TP 4, étape 6](tp4/etape6-scenario-panne-rejeu.md)). Il faudrait une boîte d'envoi, que je n'ai pas écrite |
 | C6 | **Kafka ajoute une infrastructure à faire tourner.** | Une dépendance npm (`kafkajs`) ; 5 conteneurs ; **180** lignes de fichiers de déploiement et un script de scénario de 71 lignes. Il faut aussi des gestes d'exploitation : un rejeu n'est accepté que si le groupe est vide, ce qui m'a obligé à écrire un **arrêt propre** après un premier refus ([TP 4, étape 6](tp4/etape6-scenario-panne-rejeu.md)) |
-| C7 | **Le contrat entre les deux services est implicite.** | Le signalement voyage en JSON, sans schéma versionné. Si Trafic renomme `vitesseMoyenne`, Notifications répond 422 en HTTP. Par Kafka, il **journalise et ignore** le message : l'incident est perdu **sans erreur visible chez Trafic**. Seul le test de bout en bout [`traficVersNotifications.test.ts`](../test/traficVersNotifications.test.ts) l'attraperait, et seulement si on le lance |
+| C7 | **Le contrat entre les deux services est implicite.** | Le signalement voyage en JSON, sans schéma versionné. Si Trafic renomme `vitesseMoyenne`, Notifications répond 422 en HTTP. Par Kafka, il **journalise et ignore** le message : l'incident est perdu **sans erreur visible chez Trafic**. Seul le test de bout en bout [`traficVersNotifications.test.ts`](../test/traficVersNotifications.test.ts) l'attraperait. Il tourne dans `npm test`, mais **seulement parce que les deux services sont dans le même dépôt** : il importe le code des deux. Et il ne couvre que HTTP : aucun test n'enchaîne la publication Kafka de Trafic et l'entrée Kafka de Notifications |
 | C8 | **Le découpage pèse lourd pour transporter un message.** | Le TP 4, hors documentation et `package-lock.json`, c'est **1 344 lignes ajoutées dans 36 fichiers** (`git diff --shortstat bbca6ce 0996b1a`). Le besoin métier tient pourtant en une phrase : prévenir les opérateurs d'un bouchon |
 | C9 | **L'environnement coûte du temps, hors de tout code métier.** | Docker Desktop arrêté ; chemins `/opt/kafka` réécrits par Git Bash (`MSYS_NO_PATHCONV=1`) ; images sans `kafkajs` (`npm ci --omit=dev`) ; volume non inscriptible (`chown`). Ce sont **4 problèmes** à l'étape 6, et aucun ne concernait la règle de congestion ([défis du TP 4](../README.md#les-défis-rencontrés-et-leurs-solutions)) |
 
@@ -165,3 +166,81 @@ fichiers, des millisecondes, ou un défaut. Les chiffres viennent du dépôt
 - **Les coûts les plus lourds viennent du découpage en services, pas de l'hexagone** (C3, C5 à
   C9). Cela confirme la conclusion du TP 3 : un monolithe hexagonal tant qu'aucun signal ne
   justifie de payer ce prix.
+
+---
+
+## 3. Comparaison avec Segment, et trois recommandations
+
+### 3.1 Pourquoi Segment, et pas Prime Video
+
+Le cours (5.1) présente deux équipes revenues des microservices. Je compare avec **Segment**
+(A. Noonan, 10/07/2018), parce que son système fait **la même chose que le mien** : il envoie des
+événements vers des destinations. Trafic envoie des signalements à Notifications.
+
+**Prime Video** (R. Gancarz, InfoQ, 03/05/2023) résout un autre problème. Ses deux coûts venaient
+de son outillage et de son volume :
+- l'orchestrateur, AWS Step Functions, coûtait à chaque transition ;
+- le stockage intermédiaire des images vidéo coûtait à chaque passage.
+
+Je n'ai ni orchestrateur, ni fonctions sans serveur, ni gros volume de données (3 tronçons). La
+comparaison n'aurait rien appris.
+
+### 3.2 Segment et UrbanHub, ligne à ligne
+
+| | Segment (2018) | UrbanHub (TP 2 à 4) |
+|---|---|---|
+| **Le système** | des événements (clic, achat) envoyés à plus d'une centaine de destinations partenaires | des signalements de congestion envoyés à **une** destination (Notifications). Un second lecteur, `audit`, lit tout sans agir |
+| **Le découpage d'origine** | un service et **une file par destination** : plus de 140 services | un service par contexte (Trafic, Notifications), et **un seul journal** (le topic `signalements`) avec **un groupe par lecteur** (`notifications`, `audit`). Ajouter une destination, c'est ajouter un groupe, **pas** une file ni un service de transport |
+| **Ce qui a coincé : les bibliothèques en versions différentes** | chaque service avait sa version des bibliothèques communes | **pas rencontré**, mais pour une raison précise : un seul `package.json`, un seul `package-lock.json`, donc une seule version de `kafkajs` pour les deux services. C'est **déjà** la forme vers laquelle Segment est revenu : un seul dépôt |
+| **Ce qui a coincé : une charge propre à chaque service** | chaque service avait son profil de charge, à régler un par un | **non mesuré** : 3 tronçons. La seule charge observée est celle d'une **panne** : sans coupe-circuit, 30 requêtes contre un service figé (B7) |
+| **Ce qui a coincé : l'exploitation** | **trois ingénieurs** absorbés par la seule exploitation | à mon échelle, le même phénomène : **4 problèmes d'environnement** à l'étape 6, aucun lié au métier (C9) ; 5 conteneurs, 180 lignes de déploiement (C6) ; 1 344 lignes pour transporter un message (C8). Et ce, pour **2** services. Segment en avait plus de 140 |
+| **La décision** | un seul service, un seul dépôt | au TP 3, **la même** : un monolithe hexagonal, un seul dépôt ; découper seulement à un signal mesuré. Le TP 4 a exercé ce découpage sans changer cette conclusion |
+| **Ce qu'ils ont perdu** | **l'isolement des pannes** : un défaut touche toutes les destinations | c'est exactement ce que le découpage m'a **apporté** (B7) : Notifications coupé, Trafic répond en 0,06 s avec Kafka et ne s'acharne plus en HTTP. Dans un monolithe, je le perdrais à mon tour |
+
+**Ce que la comparaison m'apprend.**
+1. **Le coût de Segment est un coût par service**, multiplié par 140. Mon coût par service est déjà
+   visible avec 2 services (C6, C8, C9). Il n'y a aucune raison qu'il soit plus petit ailleurs.
+2. **Le journal partagé évite le piège d'origine de Segment**, une file et un service **par
+   destination**. Avec Kafka, une destination de plus est un groupe de plus. Ses offsets sont les
+   siens, et son rejeu ne touche pas les autres (B8).
+3. **L'isolement des pannes ne demande pas forcément des services séparés.** Mes deux Décorateurs
+   (réessai borné, coupe-circuit) enveloppent un port. Ils protégeraient tout aussi bien un
+   adaptateur **à l'intérieur** d'un monolithe, par exemple l'appel au fournisseur de SMS. Cela
+   réduit ce que Segment a perdu en revenant au monolithe. Cela ne supprime pas la panne qui
+   emporte tout le processus.
+4. **Les deux équipes disent qu'il faut mesurer** ce que rapporte le découpage. C'est ce que font
+   les 5 signaux observables du [TP 3](tp3/etape6-conclusion.md).
+
+### 3.3 Trois recommandations pour un futur projet UrbanHub
+
+#### R1. Commencer en monolithe hexagonal, dans un seul dépôt, et découper sur un signal mesuré
+
+| | |
+|---|---|
+| **La recommandation** | Un processus, un dépôt, un hexagone par contexte délimité. Entre deux hexagones, toujours un **port**, jamais un appel direct. On sort un service seulement quand l'un des signaux du TP 3 est atteint : une panne d'un hexagone en arrête un autre, une équipe bloquée, une charge différente, une disponibilité différente ou une autre technologie |
+| **La raison** | Les coûts du découpage arrivent dès le 2ᵉ service (C3, C6, C8, C9). Segment les a payés 140 fois avant de revenir. L'hexagone rend le découpage **peu coûteux le jour venu** : Trafic était déjà prêt à sortir (B6), et un changement de transport ne touche pas le centre (B3) |
+| **Le prix** | L'isolement des pannes (ce que Segment a perdu). Une exception non rattrapée dans un hexagone arrête tous les autres. On l'atténue avec les Décorateurs autour des ports risqués (3.2, point 3) et par le signal n° 1 du TP 3, qui déclenche la sortie au premier incident |
+| **Preuve** | B3, B6 ; [TP 3, étape 6](tp3/etape6-conclusion.md) ; `git diff --stat e04d6e8 646ba3a` vide sur les centres |
+
+#### R2. Pour envoyer des événements : un journal, un groupe par lecteur, des lecteurs idempotents, et un topic d'erreurs
+
+| | |
+|---|---|
+| **La recommandation** | Quand un événement a plusieurs destinations, on publie **une fois** dans un journal (Kafka), avec un groupe par lecteur, et **pas** une file ni un service par destination comme Segment au départ. Chaque lecteur est idempotent, avec un identifiant **tiré du fait métier**, comme `troncon:debut`. Un message illisible part dans un **topic d'erreurs** (une « lettre morte »), au lieu d'être seulement journalisé |
+| **La raison** | Trafic publie sans attendre son lecteur, et le message survit à la panne (B7 ; à comparer avec C5 en HTTP). L'idempotence rend le rejeu sans danger (B8). Le topic d'erreurs corrige C7 : aujourd'hui, un message illisible est **ignoré**, donc l'incident est perdu sans bruit. Avec le topic d'erreurs, il resterait visible et rejouable une fois le lecteur corrigé |
+| **Le prix** | Un broker à exploiter (C6) ; l'idempotence dans chaque lecteur, et sa fenêtre résiduelle (C4) ; un topic de plus, avec quelqu'un qui le surveille. **Dans le monolithe de R1**, on commence sans Kafka : le port `PublicateurSignalements` a un adaptateur en processus, et l'adaptateur Kafka existe déjà pour le jour du découpage |
+| **Preuve** | [trace de l'étape 6](tp4/trace-etape6.txt) : 202 en 0,06 s pendant la panne, rejeu sans notification de plus ; [`entreeKafkaNotifications.test.ts`](../test/entreeKafkaNotifications.test.ts) pour le message illisible ignoré |
+
+#### R3. Rendre explicite le contrat entre contextes, et le tester des deux côtés
+
+| | |
+|---|---|
+| **La recommandation** | Le format du signalement devient un **fichier de contrat versionné** (un schéma JSON, avec un champ `version`). Deux tests le vérifient : côté Trafic, « ce que je publie respecte le schéma » ; côté Notifications, « je sais traduire tout message conforme au schéma ». Ces tests remplacent la dépendance au test de bout en bout, qui importe le code des deux services |
+| **La raison** | C7 : aujourd'hui, le contrat n'est vérifié que parce que les deux services partagent un dépôt, et seulement en HTTP. Le jour où Notifications a son propre dépôt, ou une autre équipe, ce filet disparaît. Segment rappelle l'autre face du même problème : des versions qui divergent entre services. Un contrat versionné dit **quelle** version chaque côté parle |
+| **Le prix** | Un fichier de schéma à maintenir ; deux tests de plus par paire de contextes ; une règle d'évolution à respecter : ajouter un champ est permis, renommer ou supprimer demande une nouvelle version, et l'ancienne reste lue pendant la transition |
+| **Preuve** | C7 ; [`traficVersNotifications.test.ts`](../test/traficVersNotifications.test.ts), qui importe `urbanhub-trafic/` **et** `urbanhub-notifications/` ; aucun test n'enchaîne `publicationKafka.ts` et `entreeKafka.ts` |
+
+**Les trois tiennent ensemble.**
+- R1 dit **quand** découper.
+- R2 dit **comment** les services se parlent une fois découpés.
+- R3 dit **ce qui** protège le contrat quand ils ne partagent plus de dépôt.
