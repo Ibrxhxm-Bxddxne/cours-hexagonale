@@ -8,6 +8,10 @@ npm test          # toute la suite de tests
 npm run air       # service Qualité de l'air, port 8001
 npm run alertes   # service Alertes, port 8002
 npm run trafic    # service Trafic, port 8003
+npm run notifications       # service Notifications, port 8004 (TP 4)
+npm run test:trafic         # les tests du seul service Trafic
+npm run test:notifications  # les tests du seul service Notifications
+docker compose -f compose.tp4.yaml up -d --build   # Trafic, Notifications et Kafka (TP 4)
 ```
 
 ## Service Trafic (TP 2)
@@ -123,6 +127,71 @@ Le détail des étapes est dans le dossier `docs/` :
 
 Le détail : [`docs/tp2-etape6-remplacement-adaptateur.md`](docs/tp2-etape6-remplacement-adaptateur.md).
 
+## Trafic et Notifications en microservices (TP 4)
+
+Le service Trafic du TP 2 devient un microservice. Il envoie ses signalements de congestion à un
+second service, **Notifications**, en HTTP ou par Kafka. Le détail de chaque étape est dans
+[`docs/tp4/`](docs/tp4/README.md).
+
+```mermaid
+flowchart LR
+  boucles([Boucles de comptage]) -- "POST /releves" --> trafic
+  subgraph s_trafic ["Trafic · port 8003"]
+    trafic{{"SurveillanceTrafic"}} --> reessai["Réessai borné<br/>(Décorateur)"] --> circuit["Coupe-circuit<br/>(Décorateur)"]
+    circuit --> http["PublicateurSignalementsHttp<br/>délai 2 s"]
+    circuit --> kafkapub["PublicateurSignalementsKafka<br/>clé = tronçon"]
+  end
+  trafic --- db_t[("releves.db")]
+  http -- "POST /signalements" --> e_http
+  kafkapub --> topic[["Kafka · topic signalements<br/>3 partitions"]]
+  topic -- "groupe notifications" --> e_kafka
+  topic -- "groupe audit" --> audit["audit.ts<br/>(lit, n'agit pas)"]
+  subgraph s_notif ["Notifications · port 8004"]
+    e_http["entreeHttp.ts"] --> trad["traduction<br/>signalement → incident"]
+    e_kafka["entreeKafka.ts"] --> trad
+    trad --> recep{{"ReceptionIncidents<br/>(idempotent)"}}
+  end
+  recep --- db_n[("notifications.db")]
+  recep --> ops([Opérateurs])
+```
+
+- **Le transport se choisit dans la racine de composition** de Trafic : avec `KAFKA_BROKERS`, Kafka ;
+  sinon, HTTP. Le cas d'utilisation ne change pas.
+- **Chaque service a sa base** (`releves.db`, `notifications.db`), et aucun n'importe le code de
+  l'autre : la règle de dépendance le vérifie.
+
+### Les livrables
+
+| Livrable | Où |
+|---|---|
+| **Les deux services et leurs tests verts** | [`urbanhub-trafic/`](urbanhub-trafic/) et [`urbanhub-notifications/`](urbanhub-notifications/). `npm test` : **127 / 127** ; `npm run test:trafic` : 65 ; `npm run test:notifications` : 38 |
+| **Les deux adaptateurs de publication** | HTTP : [`publicationHttp.ts`](urbanhub-trafic/src/adaptateurs/publicationHttp.ts) (délai 2 s) ; Kafka : [`publicationKafka.ts`](urbanhub-trafic/src/adaptateurs/publicationKafka.ts) (clé = tronçon, topic à 3 partitions) |
+| **Les traces** du scénario, de la panne et du rejeu | [`docs/tp4/trace-etape6.txt`](docs/tp4/trace-etape6.txt), commentées dans [`etape6-scenario-panne-rejeu.md`](docs/tp4/etape6-scenario-panne-rejeu.md) ; à rejouer avec [`scenario-etape6.sh`](docs/tp4/scenario-etape6.sh) |
+| **Les défis et leurs solutions** | le tableau ci-dessous |
+
+### Ce que les traces montrent
+
+| Moment | HTTP | Kafka |
+|---|---|---|
+| Scénario normal | relevé → 202, une notification par épisode | relevé → 202 en moins de 0,13 s ; Rivoli en partition 0, Voltaire en partition 1 ; les deux groupes lisent tout |
+| **Notifications coupé** | le capteur reçoit **500 après 7,5 s**, puis 500 après 5,5 s, puis le coupe-circuit refuse aussitôt | le capteur reçoit **202 en 0,06 s** ; le signalement attend dans le topic (LAG = 1) |
+| Notifications revient | prévenu au relevé suivant, plus de 30 s après, avec un début **faussé** (09:04 au lieu de 09:02) | prévenu **dès le redémarrage**, avec le bon début (09:02) |
+| **Rejeu** du groupe `notifications` depuis le début | — | 3 messages relus, **3 doublons ignorés, 0 notification de plus** ; le groupe `audit` n'a pas bougé |
+
+### Les défis rencontrés et leurs solutions
+
+| Défi | Solution | Preuve |
+|---|---|---|
+| Un service figé fige celui qui l'appelle | **délai** de 2 s sur chaque appel HTTP (et `requestTimeout` Kafka) | test « le délai » : abandon au bout du délai ([étape 2](docs/tp4/etape2-publication-et-reception-http.md)) |
+| Une panne passagère fait perdre un signalement | **réessai borné** (Décorateur) : 3 essais, pauses 0,5 s puis 1 s ; il ne retente **ni** un refus 422 **ni** un circuit ouvert | [`reessaiTrafic.test.ts`](test/reessaiTrafic.test.ts) |
+| Une panne longue coûte 7,5 s par relevé et assomme le service qui redémarre | **coupe-circuit** (Décorateur) : ouvert après 5 échecs, pendant 30 s, puis un appel d'essai | 10 relevés face à un service figé : 30 requêtes et environ 800 ms par relevé **sans** coupe-circuit, 5 requêtes puis 0 ms **avec** ([étape 3](docs/tp4/etape3-reessai-et-coupe-circuit.md)) |
+| Le réessai et Kafka livrent des **doublons** | **consommateur idempotent** : l'identifiant `troncon:debut`, tiré du relevé, est réservé en base avant de prévenir | le même message envoyé deux fois donne 1 notification ; tenu après un redémarrage ; le rejeu donne 0 notification de plus ([étape 4](docs/tp4/etape4-idempotence.md)) |
+| Deux contextes, deux vocabulaires (tronçon et vitesses, contre incident) | Notifications a **son** modèle ; la **traduction** se fait dans ses adaptateurs d'entrée, la même pour HTTP et Kafka | règle de dépendance : le centre n'importe aucun autre service ([étape 1](docs/tp4/etape1-decoupage.md)) |
+| Un message Kafka illisible bloquerait sa partition | journalisé puis **ignoré** ; seule une panne des opérateurs fait relire le message | [`entreeKafkaNotifications.test.ts`](test/entreeKafkaNotifications.test.ts) |
+| Une bibliothèque (`kafkajs`) pourrait entrer dans le centre | elle n'est importée que dans les racines de composition ; la règle de dépendance interdit désormais tout paquet npm dans le centre | [étape 5](docs/tp4/etape5-adaptateur-kafka.md) |
+| **Le rejeu était refusé** : « group is inactive… current state is Stable » | **arrêt propre** : sur `SIGTERM`, le consommateur quitte son groupe | 2ᵉ essai : groupe `Empty`, rejeu accepté ([étape 6](docs/tp4/etape6-scenario-panne-rejeu.md)) |
+| Les images ne tournaient pas : `kafkajs` absent, volume non inscriptible | `npm ci --omit=dev` ; `chown node:node /donnees` | la pile, construite à neuf, démarre ses 5 conteneurs |
+
 ## Rendus
 
 ### TP 1 : trois avantages de l'hexagone, prouvés
@@ -206,3 +275,21 @@ comme l'a demandé l'enseignant.
 | 5. La stratégie de déploiement et le manifeste Kubernetes | `a8bbee7` |
 | 6. La conclusion | `079855e` |
 | 7. Le rendu | [`docs/tp3/etape7-rendu.md`](docs/tp3/etape7-rendu.md) |
+
+### TP 4 : deux microservices hexagonaux qui se parlent
+
+| | |
+|---|---|
+| **Lien du dépôt** | https://github.com/Ibrxhxm-Bxddxne/cours-hexagonale |
+| **Empreinte du commit** | `0996b1a` (TP4 étape 6 : les deux services, les deux adaptateurs, les tests et les traces) |
+| **Chemin du livrable** | ce README, section [« Trafic et Notifications en microservices (TP 4) »](#trafic-et-notifications-en-microservices-tp-4) ; le détail dans [`docs/tp4/README.md`](docs/tp4/README.md) |
+
+| Étape | Commit |
+|---|---|
+| 1. Le découpage : Trafic microservice, Notifications en hexagone | `f278619` |
+| 2. Publication HTTP avec délai, et réception | `c35c859` |
+| 3. Réessai borné et coupe-circuit | `50a58ee` |
+| 4. Consommateur idempotent | `e04d6e8` |
+| 5. Publication Kafka, deux groupes | `646ba3a` |
+| 6. `docker compose`, scénario, panne, rejeu | `0996b1a` |
+| 7. Le rendu | [`docs/tp4/etape7-rendu.md`](docs/tp4/etape7-rendu.md) |
