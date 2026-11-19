@@ -9,6 +9,7 @@ dépôt : un test, un commit ou une trace.
 | Partie | Contenu |
 |---|---|
 | 1 | Ce que j'ai construit : le besoin, le découpage, les patrons, la communication |
+| 2 | Les bénéfices observés, avec leurs preuves ; les contraintes, avec leur coût |
 
 ---
 
@@ -117,3 +118,50 @@ et du rejeu sont dans [`tp4/trace-etape6.txt`](tp4/trace-etape6.txt).
 | Tests | **127**, tous verts (`npm test`) ; 65 pour Trafic, 38 pour Notifications |
 | Commits | 9 au TP 2, 8 au TP 3, 7 au TP 4 ; chaque étape a sa fiche dans `docs/` |
 | Dépendances npm | **1** : `kafkajs`, importée seulement dans les racines de composition |
+
+---
+
+## 2. Bénéfices et contraintes
+
+**La règle de cette partie.** Je ne garde un bénéfice que s'il a été **observé** : par un test, un
+commit ou une trace. Je ne garde une contrainte qu'avec **ce qu'elle a coûté** : des lignes, des
+fichiers, des millisecondes, ou un défaut. Les chiffres viennent du dépôt
+(`git diff --stat`, `wc -l`, `npm test`) ou des fiches d'étape.
+
+### 2.1 Les bénéfices observés
+
+| # | Bénéfice | Preuve |
+|---|---|---|
+| B1 | **Le métier se teste sans base ni réseau, et vite.** | Au TP 1, le test en mémoire prend environ 2,5 ms, contre 91 à 145 ms pour le test du code d'avant, qui ouvrait une vraie base et un faux serveur : environ **50 fois plus rapide** ([TP 1, étape 3](etape3-resultats-experiences.md)). Aujourd'hui, les **127 tests** passent en environ **2,2 s**. Les 10 tests des adaptateurs Kafka tournent **sans broker** ([TP 4, étape 5](tp4/etape5-adaptateur-kafka.md)) |
+| B2 | **Remplacer un adaptateur ne touche que l'adaptateur et la racine de composition.** | Commit `197c622` : `etatsSqlite.ts` créé (31 lignes) et `principal.ts` (7 lignes modifiées), **rien d'autre**. Il corrige un vrai défaut : un redémarrage faisait signaler deux fois le même bouchon ([TP 2, étape 6](tp2-etape6-remplacement-adaptateur.md)) |
+| B3 | **Changer de transport (HTTP vers Kafka) ne touche pas le centre.** | `git diff --stat e04d6e8 646ba3a` sur `domaine.ts`, `ports.ts`, `regles.ts` et `service.ts` des deux services : **vide** ([TP 4, étape 5](tp4/etape5-adaptateur-kafka.md)) |
+| B4 | **Un Décorateur écrit une fois sert pour un transport qui n'existait pas encore.** | Le réessai a été écrit au TP 2 pour HTTP. Au TP 4, il enveloppe Kafka : le même `git diff` est **vide** sur `reessai.ts` et `coupeCircuit.ts`. Le test « broker injoignable » montre ses 3 essais sur Kafka ([`publicationKafkaTrafic.test.ts`](../test/publicationKafkaTrafic.test.ts)) |
+| B5 | **La frontière du centre est vérifiée par une machine, pas par la relecture.** | Un fichier `faute.ts` qui importe `kafkajs` dans le centre de Notifications fait échouer la règle de dépendance (1 échec). Sans lui, tout repasse ([TP 4, étape 5](tp4/etape5-adaptateur-kafka.md)) |
+| B6 | **Découper a été peu coûteux, parce que l'hexagone avait préparé les coutures.** | Au TP 4, Trafic était déjà un microservice selon les critères du cours. Le seul ajout a été le script `npm run test:trafic` ([TP 4, étape 1](tp4/etape1-decoupage.md)) |
+| B7 | **Une panne de Notifications ne fige plus Trafic.** | Avec le coupe-circuit, 10 relevés face à un service figé envoient **5** requêtes au lieu de **30**, et chaque relevé passe d'environ 800 ms dans le test (**7,5 s** à l'échelle réelle) à **0 ms** ([TP 4, étape 3](tp4/etape3-reessai-et-coupe-circuit.md)). Avec Kafka, le capteur reçoit **202 en 0,06 s** pendant la panne, et Notifications rattrape le message dès son redémarrage ([trace](tp4/trace-etape6.txt)) |
+| B8 | **Les doublons ne préviennent pas deux fois les opérateurs.** | Le même message envoyé deux fois donne 1 notification, et le résultat tient après un redémarrage. Le **rejeu** de tout le topic donne 3 doublons ignorés et **0** notification de plus. Le groupe `audit` n'a pas bougé ([TP 4, étapes 4 et 6](tp4/etape6-scenario-panne-rejeu.md)) |
+| B9 | **Une règle métier se change sans toucher au cas d'utilisation.** | La Stratégie `SeuilRelatifAvecMinimum` supprime le faux bouchon de nuit (un bus à l'arrêt à 03:00) et le double signalement de 08:00 et 08:32. `service.ts` n'a pas changé ([`patronsTrafic.test.ts`](../test/patronsTrafic.test.ts)) |
+
+### 2.2 Les contraintes, et ce qu'elles ont coûté
+
+| # | Contrainte | Ce qu'elle a coûté |
+|---|---|---|
+| C1 | **Il y a plus de code autour du centre que dans le centre.** | Trafic : **326** lignes d'adaptateurs pour 226 de centre. Notifications : 172 pour 155. Il faut un adaptateur en mémoire **par port** pour les tests, et un test de contrat par port réel : **61** lignes de contrat pour un adaptateur de 31 ([TP 2, étape 6](tp2-etape6-remplacement-adaptateur.md)) |
+| C2 | **Le chemin d'un appel est plus long à lire.** | Un signalement traverse le port, le réessai, le coupe-circuit, puis l'adaptateur : **4 fichiers** pour un seul `publier()`. Les trois racines de composition font 109 lignes et lisent **7 variables d'environnement** (`PORT`, `REGLE`, `BASE_RELEVES`, `BASE_NOTIFICATIONS`, `URL_SIGNALEMENTS`, `KAFKA_BROKERS`, `KAFKA_GROUPE`). Il faut toutes les documenter, sinon personne ne sait ce qui tourne en production |
+| C3 | **Un appel par le réseau est lent, et il peut échouer à moitié.** | Un appel de fonction prend environ 1 µs, un appel HTTP local environ 1 ms : **plus de 1 000 fois plus lent** ([TP 3, étape 3](tp3/etape3-tableau-comparatif.md)). Notifications coupé, le capteur attend **7,54 s** puis reçoit 500, alors que son relevé est déjà en base ([trace](tp4/trace-etape6.txt)) |
+| C4 | **Le réessai et Kafka obligent à l'idempotence, et elle a touché le centre.** | Le contrat du port `Historique` a changé (`enregistrer(): boolean`, `retirer()`), avec 30 lignes ajoutées dans `ports.ts` et `service.ts` (commit `e04d6e8`). **Une fenêtre reste ouverte** : si le processus meurt entre la réservation et l'envoi, l'incident est perdu (« au plus une fois ») ([TP 4, étape 4](tp4/etape4-idempotence.md), § 4) |
+| C5 | **En HTTP, un signalement perdu pendant la panne n'est pas rattrapé.** | Il n'est renvoyé qu'au relevé suivant, plus de 30 s après, et avec un début **faussé** : 09:04 au lieu de 09:02 ([TP 4, étape 6](tp4/etape6-scenario-panne-rejeu.md)). Il faudrait une boîte d'envoi, que je n'ai pas écrite |
+| C6 | **Kafka ajoute une infrastructure à faire tourner.** | Une dépendance npm (`kafkajs`) ; 5 conteneurs ; **180** lignes de fichiers de déploiement et un script de scénario de 71 lignes. Il faut aussi des gestes d'exploitation : un rejeu n'est accepté que si le groupe est vide, ce qui m'a obligé à écrire un **arrêt propre** après un premier refus ([TP 4, étape 6](tp4/etape6-scenario-panne-rejeu.md)) |
+| C7 | **Le contrat entre les deux services est implicite.** | Le signalement voyage en JSON, sans schéma versionné. Si Trafic renomme `vitesseMoyenne`, Notifications répond 422 en HTTP. Par Kafka, il **journalise et ignore** le message : l'incident est perdu **sans erreur visible chez Trafic**. Seul le test de bout en bout [`traficVersNotifications.test.ts`](../test/traficVersNotifications.test.ts) l'attraperait, et seulement si on le lance |
+| C8 | **Le découpage pèse lourd pour transporter un message.** | Le TP 4, hors documentation et `package-lock.json`, c'est **1 344 lignes ajoutées dans 36 fichiers** (`git diff --shortstat bbca6ce 0996b1a`). Le besoin métier tient pourtant en une phrase : prévenir les opérateurs d'un bouchon |
+| C9 | **L'environnement coûte du temps, hors de tout code métier.** | Docker Desktop arrêté ; chemins `/opt/kafka` réécrits par Git Bash (`MSYS_NO_PATHCONV=1`) ; images sans `kafkajs` (`npm ci --omit=dev`) ; volume non inscriptible (`chown`). Ce sont **4 problèmes** à l'étape 6, et aucun ne concernait la règle de congestion ([défis du TP 4](../README.md#les-défis-rencontrés-et-leurs-solutions)) |
+
+### 2.3 Ce que je retiens
+
+- **L'hexagone a rapporté là où la technique changeait** : la base au TP 2 (B2), le transport au
+  TP 4 (B3, B4). À chaque fois, le changement est resté dans les adaptateurs et la racine.
+- **Le centre a changé quand le besoin a changé** : l'idempotence (C4) est une règle de
+  Notifications, pas une technique. L'hexagone ne protège pas de cela, et ce n'est pas son rôle.
+- **Les coûts les plus lourds viennent du découpage en services, pas de l'hexagone** (C3, C5 à
+  C9). Cela confirme la conclusion du TP 3 : un monolithe hexagonal tant qu'aucun signal ne
+  justifie de payer ce prix.
