@@ -33,8 +33,11 @@ export function gestionnaire(cas: RecevoirIncident, journal: (ligne: string) => 
     try {
       const recu = incidentDepuisSignalement(JSON.parse(await lireCorps(requete)));
       journal(`recu ${recu.identifiant}`);
-      await cas.executer(recu);
-      reponse.writeHead(202).end();       // 202 : accepte, l'emetteur n'a rien a refaire
+      const issue = await cas.executer(recu);
+      if (issue === "doublon") journal(`doublon ignore ${recu.identifiant}`);
+      // 202 dans les DEUX cas : pour l'emetteur, le message est pris en compte ; un doublon
+      // qui recevrait une erreur serait renvoye encore, pour rien
+      reponse.writeHead(202).end();
     } catch (erreur) {
       // une donnee fausse ne s'arrangera pas en la renvoyant : 422 ; le reste : 500, a retenter
       const invalide = erreur instanceof IncidentInvalide || erreur instanceof SyntaxError;

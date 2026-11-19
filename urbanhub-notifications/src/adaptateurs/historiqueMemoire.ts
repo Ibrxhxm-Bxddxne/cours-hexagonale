@@ -5,9 +5,13 @@ export class HistoriqueEnMemoire implements Historique {
   #incidents = new Map<string, Incident>();   // une Map garde l'ordre d'insertion
 
   enregistrer(incident: Incident) {
-    if (!this.#incidents.has(incident.identifiant)) {
-      this.#incidents.set(incident.identifiant, incident);
-    }
+    if (this.#incidents.has(incident.identifiant)) return false;
+    this.#incidents.set(incident.identifiant, incident);
+    return true;
+  }
+
+  retirer(identifiant: string) {
+    this.#incidents.delete(identifiant);
   }
 
   tous() {

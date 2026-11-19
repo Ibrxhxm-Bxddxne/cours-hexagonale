@@ -37,6 +37,23 @@ for (const [nom, creer] of Object.entries(adaptateurs)) {
     h.enregistrer({ ...inc(1), resume: "autre texte" });
     assert.deepEqual(h.tous(), [inc(1)]);
   });
+
+  test(`${nom} : enregistrer dit si l'incident est nouveau (true), puis deja la (false)`, () => {
+    const h = creer();
+    assert.equal(h.enregistrer(inc(1)), true);
+    assert.equal(h.enregistrer(inc(1)), false);
+    assert.equal(h.enregistrer(inc(2)), true);
+  });
+
+  test(`${nom} : retirer rend l'identifiant, qui peut etre enregistre de nouveau`, () => {
+    const h = creer();
+    h.enregistrer(inc(1));
+    h.enregistrer(inc(2));
+    h.retirer(inc(1).identifiant);
+    assert.deepEqual(h.tous(), [inc(2)]);
+    assert.equal(h.enregistrer(inc(1)), true);
+    h.retirer("jamais-vu");                  // retirer un inconnu ne casse rien
+  });
 }
 
 test("sqlite seulement : l'historique survit a un redemarrage du service", () => {

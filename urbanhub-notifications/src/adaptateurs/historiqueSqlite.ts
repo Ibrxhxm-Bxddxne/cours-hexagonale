@@ -16,10 +16,16 @@ export class HistoriqueSqlite implements Historique {
     this.#base.exec(SCHEMA);
   }
 
-  enregistrer(i: Incident) {         // un identifiant deja present n'ajoute rien
-    this.#base.prepare("INSERT INTO incident (identifiant, source, lieu, resume, survenu)"
+  enregistrer(i: Incident) {         // indivisible : la contrainte UNIQUE tranche, pas un SELECT avant
+    const { changes } = this.#base.prepare(
+      "INSERT INTO incident (identifiant, source, lieu, resume, survenu)"
       + " VALUES (?, ?, ?, ?, ?) ON CONFLICT (identifiant) DO NOTHING")
       .run(i.identifiant, i.source, i.lieu, i.resume, i.survenu);
+    return changes === 1;            // 1 ligne ajoutee : nouveau ; 0 : deja la
+  }
+
+  retirer(identifiant: string) {
+    this.#base.prepare("DELETE FROM incident WHERE identifiant = ?").run(identifiant);
   }
 
   tous() {
